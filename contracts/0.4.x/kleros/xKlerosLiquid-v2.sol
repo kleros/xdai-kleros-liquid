@@ -15,15 +15,15 @@ import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { Arbitrator, Arbitrable } from "@kleros/kleros-interaction/contracts/standard/arbitration/Arbitrator.sol";
 import { MiniMeTokenERC20 as Pinakion } from "@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol";
 import { IRandomAuRa } from "../interfaces/IRandomAuRa.sol";
-
-import { SortitionSumTreeFactory } from "../data-structures/SortitionSumTreeFactory.sol";
+import { SortitionSumTreeFactory } from "@kleros/kleros/contracts/data-structures/SortitionSumTreeFactory.sol";
+import "./ICrossChainArbitrable.sol";
 
 /**
  *  @title xKlerosLiquid
  *  @dev This contract is an adaption of Mainnet's KlerosLiquid (https://github.com/kleros/kleros/blob/69cfbfb2128c29f1625b3a99a3183540772fda08/contracts/kleros/KlerosLiquid.sol)
  *  for xDai chain.
  */
-contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
+contract xKlerosLiquid is Initializable, TokenController, Arbitrator, ICrossChainArbitrable {
     /* Enums */
 
     // General
@@ -39,7 +39,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
       commit, // Jurors commit a hashed vote. This is skipped for courts without hidden votes.
       vote, // Jurors reveal/cast their vote depending on whether the court has hidden votes or not.
       appeal, // The dispute can be appealed.
-      execution // Tokens are redistributed and the ruling is executed.
+      execution, // Tokens are redistributed and the ruling is executed.
+      crossChainArbitration // The dispute was passed to KlerosLiquid on the foreign chain. The dispute will be executed once the ruling is notified.
     }
 
     /* Structs */
@@ -94,6 +95,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint[] repartitionsInEachRound;
         uint[] penaltiesInEachRound; // The amount of tokens collected from penalties in each round in the form `penaltiesInEachRound[appeal]`.
         bool ruled; // True if the ruling has been executed, false otherwise.
+        bool crossChainRuled;
+        uint crossChainRuling;
     }
 
     // Juror
@@ -146,17 +149,18 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     // General Constants
     uint public constant MAX_STAKE_PATHS = 4; // The maximum number of stake paths a juror can have.
     uint public constant MIN_JURORS = 3; // The global default minimum number of jurors in a dispute.
-    uint public constant NON_PAYABLE_AMOUNT = (2 ** 256 - 2) / 2; // An amount higher than the supply of ETH.
+    uint public constant NON_PAYABLE_AMOUNT = (2 ** 256 - 2) / 2; // An amount higher than the supply of xDai.
     uint public constant ALPHA_DIVISOR = 1e4; // The number to divide `Court.alpha` by.
     // General Contracts
-    address public governor; // The governor of the contract.
+    address public governor; // The address of the home governor proxy contract, which must only allow calls coming from the real governor on the foreign chain. TRUSTED.
     Pinakion public pinakion; // The Pinakion token contract.
     IRandomAuRa public RNGenerator; // The random number generator contract.
+    address public homeProxy; // The address of the home proxy contract which handles cross-chain appeals.
     // General Dynamic
     Phase public phase; // The current phase.
     uint public lastPhaseChange; // The last time the phase was changed.
     uint public disputesWithoutJurors; // The number of disputes that have not finished drawing jurors.
-    // The block number to get the next random number from. Used so there is at least a 1 block difference from the staking phase.
+    // The block number after which retrieving a random number is allowed. Used so that it is  impossible to predict the random number in staking phase.
     uint public RNBlock;
     uint public RN; // The current random number.
     uint public minStakingTime; // The minimum staking time.
@@ -179,7 +183,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     // Use a mapping instead of an array so that upgrading (appending variables to) the Dispute struct is possible without big layout changes.
     mapping(uint => Dispute) public disputes; // The disputes. 
     uint public totalDisputes;
-
+    
     // Juror
     mapping(address => Juror) public jurors; // The jurors.
 
@@ -198,6 +202,9 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
 
     /** @dev Requires that the sender is the governor. Note that the governor is expected to not be malicious. */
     modifier onlyByGovernor() {require(governor == msg.sender); _;}
+
+    /** @dev Requires that the sender is the home proxy. Note that the home proxy is expected to not be malicious. */
+    modifier onlyByHomeProxy() {require(homeProxy == msg.sender); _;}
 
     /* Constructor */
 
@@ -303,8 +310,15 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         maxDrawingTime = _maxDrawingTime;
     }
 
-    /** @dev Changes the `maxTotalStakeAllowed` storage variable.
-     *  @param _maxTotalStakeAllowed The new value for the `maxTotalStakeAllowed` storage variable.
+    /** @dev Changes the `maxDrawingTime` storage variable.
+     *  @param _maxDrawingTime The new value for the `maxDrawingTime` storage variable.
+     */
+    function changeMaxDrawingTime(uint _maxDrawingTime) external onlyByGovernor {
+        maxDrawingTime = _maxDrawingTime;
+    }
+
+    /** @dev Changes the `maxDrawingTime` storage variable.
+     *  @param _maxDrawingTime The new value for the `maxDrawingTime` storage variable.
      */
     function changeMaxTotalStakeAllowed(uint _maxTotalStakeAllowed) external onlyByGovernor {
         maxTotalStakeAllowed = _maxTotalStakeAllowed;
@@ -405,6 +419,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             require(now - lastPhaseChange >= minStakingTime, "The minimum staking time has not passed yet.");
             require(disputesWithoutJurors > 0, "There are no disputes that need jurors.");
             // collectRoundLength is added so that the last validator to reveal cannot know during the staking phase which random seed is going to be used in the drawing phase.
+            // RNBlock >= block.number + 1 + collectRoundLength
             RNBlock = RNGenerator.nextCommitPhaseStartBlock() + RNGenerator.collectRoundLength();
             phase = Phase.generating;
         } else if (phase == Phase.generating) {
@@ -420,7 +435,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         emit NewPhase(phase);
     }
 
-    /** @dev Passes the period of a specified dispute.
+    /** @dev Passes the period of a specified dispute. Only the home proxy can pass the period into and out of crossChainArbitration.
      *  @param _disputeID The ID of the dispute.
      */
     function passPeriod(uint _disputeID) external {
@@ -575,7 +590,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         }
     }
 
-    /** @dev Computes the token and ETH rewards for a specified appeal in a specified dispute.
+    /** @dev Computes the token and xDai rewards for a specified appeal in a specified dispute.
      *  @param _disputeID The ID of the dispute.
      *  @param _appeal The appeal.
      *  @return tokenReward The token reward.
@@ -583,9 +598,14 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      */
     function computeTokenAndXDaiRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint xDaiReward) {
         Dispute storage dispute = disputes[_disputeID];
+        VoteCounter storage voteCounter = dispute.voteCounters[dispute.voteCounters.length - 1];
+        uint winningChoice = 
+            dispute.crossChainRuled ? 
+                dispute.crossChainRuling :
+                voteCounter.tied ? 0 : voteCounter.winningChoice;
 
         // Distribute penalties and arbitration fees.
-        if (dispute.voteCounters[dispute.voteCounters.length - 1].tied) {
+        if (winningChoice == 0) {
             // Distribute penalties and fees evenly between active jurors.
             uint activeCount = dispute.votesInEachRound[_appeal];
             if (activeCount > 0) {
@@ -597,14 +617,13 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             }
         } else {
             // Distribute penalties and fees evenly between coherent jurors.
-            uint winningChoice = dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice;
             uint coherentCount = dispute.voteCounters[_appeal].counts[winningChoice];
             tokenReward = dispute.penaltiesInEachRound[_appeal] / coherentCount;
             xDaiReward = dispute.totalFeesForJurors[_appeal] / coherentCount;
         }
     }
 
-    /** @dev Repartitions tokens and ETH for a specified appeal in a specified dispute. Can be called in parts.
+    /** @dev Repartitions tokens and xDai for a specified appeal in a specified dispute. Can be called in parts.
      *  `O(i + u * n * (n + p * log_k(j)))` where
      *  `i` is the number of iterations to run,
      *  `u` is the number of jurors that need to be unstaked,
@@ -624,11 +643,14 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint penaltiesInRoundCache = dispute.penaltiesInEachRound[_appeal]; // For saving gas.
         (uint tokenReward, uint xDaiReward) = (0, 0);
 
+        VoteCounter storage voteCounter = dispute.voteCounters[dispute.voteCounters.length - 1];
+        uint winningChoice = 
+            dispute.crossChainRuled ? 
+                dispute.crossChainRuling :
+                voteCounter.tied ? 0 : voteCounter.winningChoice;
+
         // Avoid going out of range.
-        if (
-            !dispute.voteCounters[dispute.voteCounters.length - 1].tied &&
-            dispute.voteCounters[_appeal].counts[dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice] == 0
-        ) {
+        if (winningChoice != 0 && dispute.voteCounters[_appeal].counts[winningChoice] == 0) {
             // We loop over the votes once as there are no rewards because it is not a tie and no one in this round is coherent with the final outcome.
             if (end > dispute.votes[_appeal].length) end = dispute.votes[_appeal].length;
         } else {
@@ -636,12 +658,11 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             (tokenReward, xDaiReward) = dispute.repartitionsInEachRound[_appeal] >= dispute.votes[_appeal].length ? computeTokenAndXDaiRewards(_disputeID, _appeal) : (0, 0); // Compute rewards if rewarding.
             if (end > dispute.votes[_appeal].length * 2) end = dispute.votes[_appeal].length * 2;
         }
+
         for (uint i = dispute.repartitionsInEachRound[_appeal]; i < end; i++) {
             Vote storage vote = dispute.votes[_appeal][i % dispute.votes[_appeal].length];
-            if (
-                vote.voted &&
-                (vote.choice == dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice || dispute.voteCounters[dispute.voteCounters.length - 1].tied)
-            ) { // Juror was active, and voted coherently or it was a tie.
+            if (vote.voted && (vote.choice == winningChoice || winningChoice == 0)) { 
+                // Juror was active, and voted coherently or it was a tie.
                 if (i >= dispute.votes[_appeal].length) { // Only execute in the second half of the iterations.
 
                     // Reward.
@@ -670,7 +691,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             }
             if (i == dispute.votes[_appeal].length - 1) {
                 // Send fees and tokens to the governor if no one was coherent.
-                if (dispute.votesInEachRound[_appeal] == 0 || !dispute.voteCounters[dispute.voteCounters.length - 1].tied && dispute.voteCounters[_appeal].counts[dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice] == 0) {
+                if (dispute.votesInEachRound[_appeal] == 0 || winningChoice != 0 && dispute.voteCounters[_appeal].counts[winningChoice] == 0) {
                     // Intentional use to avoid blocking.
                     governor.send(dispute.totalFeesForJurors[_appeal]); // solium-disable-line security/no-send
                     pinakion.transfer(governor, penaltiesInRoundCache);
@@ -689,12 +710,17 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     /** @dev Executes a specified dispute's ruling. UNTRUSTED.
      *  @param _disputeID The ID of the dispute.
      */
-    function executeRuling(uint _disputeID) external onlyDuringPeriod(_disputeID, Period.execution) {
+    function executeRuling(uint _disputeID) public onlyDuringPeriod(_disputeID, Period.execution) {
         Dispute storage dispute = disputes[_disputeID];
         require(!dispute.ruled, "Ruling already executed.");
         dispute.ruled = true;
-        uint winningChoice = dispute.voteCounters[dispute.voteCounters.length - 1].tied ? 0
-            : dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice;
+
+        VoteCounter storage voteCounter = dispute.voteCounters[dispute.voteCounters.length - 1];
+        uint winningChoice = 
+            dispute.crossChainRuled ? 
+                dispute.crossChainRuling :
+                voteCounter.tied ? 0 : voteCounter.winningChoice;
+        
         dispute.arbitrated.rule(_disputeID, winningChoice);
     }
 
@@ -763,8 +789,71 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         emit NewPeriod(_disputeID, Period.evidence);
     }
 
-    /** @dev Called when `_owner` sends ether to the MiniMe Token contract.
-     *  @param _owner The address that sent the ether to create tokens.
+    /**
+     * @notice Notifies that a dispute has been requested for an arbitrable item.
+     * @param _disputeID The ID of the arbitration item.
+     * @param _extraData Additional info about the appeal. This _extraData is the one that must be used by the foreign proxy when creating the dispute in Mainnet.
+     */
+    function notifyDisputeRequest(
+        uint256 _disputeID, 
+        bytes _extraData
+    ) external override onlyByHomeProxy() onlyDuringPeriod(_disputeID, Period.appeal) {
+        Dispute storage dispute = disputes[_disputeID];
+
+        uint lastNumberOfJurors = dispute.votes[dispute.votes.length - 1].length;
+        require(dispute.subcourtID == 0, "The dispute must have reached the general court already.");
+        require(lastNumberOfJurors >= courts[0].jurorsForCourtJump, "The dispute cannot be passed to Mainnet yet.");
+
+        (, uint minJurors) = extraDataToSubcourtIDAndMinJurors(_extraData);
+        require(minJurors >= 2 * lastNumberOfJurors + 1, "Invalid number of jurors.");
+
+        dispute.period = Period.crossChainArbitration;
+        // Don't register lastPeriodChange. If the dispute creation fails and cancelDispute() is called, there could still be time to pass the dispute to mainnet.
+        // dispute.lastPeriodChange = now; 
+
+        emit AppealDecision(_disputeID, dispute.arbitrated);
+        emit NewPeriod(_disputeID, Period.crossChainArbitration);
+    }
+
+    /**
+     * @notice Cancels a dispute previously requested for an arbitrable item.
+     * @param _disputeID The ID of the arbitration item.
+     */
+    function cancelDispute(
+        uint256 _disputeID
+    ) external override onlyByHomeProxy() onlyDuringPeriod(_disputeID, Period.crossChainArbitration) {
+        Dispute storage dispute = disputes[_disputeID];
+        if (now - dispute.lastPeriodChange >= courts[0].timesPerPeriod[uint(Period.appeal)]) {
+            dispute.period = Period.execution;
+            dispute.lastPeriodChange = now;
+        } else {
+            dispute.period = Period.appeal;
+        }
+        emit NewPeriod(_disputeID, dispute.period);
+    }
+
+    /**
+     * @notice Give a ruling for a dispute. Must be called by the arbitrator.
+     * @param _disputeID The ID of the arbitration item.
+     * @param _ruling Ruling given by the arbitrator on the foreign chain. Note that 0 is reserved for "Not able/wanting to make a decision".
+     */
+    function rule(
+        uint256 _disputeID, 
+        uint256 _ruling
+    ) external override onlyByHomeProxy() onlyDuringPeriod(_disputeID, Period.crossChainArbitration) {
+        Dispute storage dispute = disputes[_disputeID];
+        require(!dispute.ruled, "Ruling already executed.");
+
+        dispute.period = Period.execution;
+        dispute.lastPeriodChange = now;
+        dispute.crossChainRuled = true;
+        dispute.crossChainRuling = _ruling;
+
+        emit NewPeriod(_disputeID, Period.execution);
+    }
+
+    /** @dev Called when `_owner` sends xDai to the MiniMe Token contract.
+     *  @param _owner The address that sent the xDai to create tokens.
      *  @return allowed Whether the operation should be allowed or not.
      */
     function proxyPayment(address _owner) public payable returns(bool allowed) { allowed = false; }
@@ -812,7 +901,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint lastNumberOfJurors = dispute.votes[dispute.votes.length - 1].length;
         if (lastNumberOfJurors >= courts[dispute.subcourtID].jurorsForCourtJump) { // Jump to parent subcourt.
             if (dispute.subcourtID == 0) // Already in the general court.
-                cost = NON_PAYABLE_AMOUNT;
+                cost = NON_PAYABLE_AMOUNT; // Appeal is still possible, but it has to be passed to Mainnet.
             else // Get the cost of the parent subcourt.
                 cost = courts[courts[dispute.subcourtID].parent].feeForJuror * ((lastNumberOfJurors * 2) + 1);
         } else // Stay in current subcourt.
@@ -852,8 +941,11 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      */
     function currentRuling(uint _disputeID) public view returns(uint ruling) {
         Dispute storage dispute = disputes[_disputeID];
-        ruling = dispute.voteCounters[dispute.voteCounters.length - 1].tied ? 0
-            : dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice;
+        VoteCounter storage voteCounter = dispute.voteCounters[dispute.voteCounters.length - 1];
+        ruling = 
+            dispute.crossChainRuled ? 
+                dispute.crossChainRuling :
+                voteCounter.tied ? 0 : voteCounter.winningChoice;
     }
 
     /* Internal */
@@ -890,12 +982,13 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         if (!(_stake == 0 || pinakion.balanceOf(_account) >= newTotalStake))
             return false; // The juror's total amount of staked tokens cannot be higher than the juror's balance.
 
-        // If maxTotalStakeAllowed was reduced through governance, totalStake could be greater than maxTotalStakeAllowed. In such case allow unstaking. Always allow unstaking.
-        if ((totalStake - juror.stakedTokens + newTotalStake > maxTotalStakeAllowed) && (newTotalStake > juror.stakedTokens))
-            return false; // Maximum xPNK stake reached. And
+        // If maxTotalStakeAllowed was reduced through governance, totalStake could be greater than maxTotalStakeAllowed. In such case only allow unstaking.
+        if (totalStake > maxTotalStakeAllowed && newTotalStake > juror.stakedTokens)
+            return false;
+        if (totalStake - juror.stakedTokens + newTotalStake > maxTotalStakeAllowed)
+            return false; // Maximum xPNK stake reached.
         // Update total stake. 
         totalStake = totalStake - juror.stakedTokens + newTotalStake;
-
         // Update juror's records.
         juror.stakedTokens = newTotalStake;
         if (_stake == 0) {
