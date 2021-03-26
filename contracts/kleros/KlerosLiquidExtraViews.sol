@@ -7,7 +7,7 @@
  */
 pragma solidity ^0.4.24;
 
-import { KlerosLiquid } from "./KlerosLiquid.sol";
+import { KlerosLiquid } from "./xKlerosLiquid.sol";
 
 /**
  *  @title KlerosLiquidExtraViews

@@ -1,0 +1,15 @@
+node_modules
+
+# Production
+/build/
+
+# Logs
+/yarn-debug.log*
+/yarn-error.log*
+
+# Editors
+/.vscode/
+/.idea/*
+
+# Misc
+/.DS_Store
