@@ -2,7 +2,7 @@
   "name": "xdai-kleros-liquid",
   "version": "0.1.0",
   "description": "Kleros Courts on xDai",
-  "main": "index.js",
+  "main": "truffle-config.js",
   "repository": "git@github.com:kleros/xdai-kleros-liquid.git",
   "author": "Kleros",
   "license": "MIT",
@@ -15,9 +15,7 @@
     "lint:js": "kathari lint:js",
     "lint": "yarn run lint:sol && yarn run lint:js",
     "test:ganache": "ganache-cli --gasLimit 8000000 --quiet &",
-    "test:truffle": "truffle test",
-    "test": "solidity-coverage",
-    "test:coveralls": "coveralls --verbose < ./coverage/lcov.info",
+    "test": "truffle test",
     "cz": "kathari cz",
     "build": "truffle compile"
   },
@@ -37,17 +35,17 @@
     "minimetoken": "^0.2.0",
     "mocha": "^8.1.1",
     "npm-run-all": "^4.1.5",
-    "openzeppelin-eth": "^2.0.2-standalone",
+    "openzeppelin-eth": "2.0.2-standalone",
     "prettier": "^2.0.5",
     "prettier-plugin-solidity": "^1.0.0-alpha.56",
     "solhint": "^3.2.0",
     "solhint-plugin-prettier": "^0.0.4",
     "solidity-coverage": "^0.5.11",
     "standard-version": "^4.4.0",
-    "truffle": "^4.1.14",
+    "truffle": "^5.2.6",
     "web3": "^1.3.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts-upgradeable": "^4.0.0"
+    "@openzeppelin/truffle-upgrades": "^1.5.0"
   }
 }

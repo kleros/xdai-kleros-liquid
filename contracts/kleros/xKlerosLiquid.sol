@@ -10,7 +10,7 @@
 /* solium-disable security/no-block-members */
 pragma solidity ^0.4.24;
 
-import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
+import "openzeppelin-eth/contracts/zos-lib/Initializable.sol";
 import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { Arbitrator, Arbitrable } from "@kleros/kleros-interaction/contracts/standard/arbitration/Arbitrator.sol";
 import { MiniMeTokenERC20 as Pinakion } from "@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol";
@@ -409,7 +409,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             phase = Phase.generating;
         } else if (phase == Phase.generating) {
             require(block.number >= RNBlock && RNGenerator.isCommitPhase(), "Random number is not ready yet."); // It's not secure to use the current seed during reveals.
-            RN = uint(keccak256(address(this), RNGenerator.currentSeed())); // currentSeed() cannot be predicted during staking phase.
+            RN = uint(keccak256(abi.encodePacked(address(this), RNGenerator.currentSeed()))); // currentSeed() cannot be predicted during staking phase.
             phase = Phase.drawing;
         } else if (phase == Phase.drawing) {
             require(disputesWithoutJurors == 0 || now - lastPhaseChange >= maxDrawingTime, "There are still disputes without jurors and the maximum drawing time has not passed yet.");

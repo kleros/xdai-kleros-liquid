@@ -7,7 +7,7 @@
  */
 pragma solidity ^0.4.24;
 
-import { KlerosLiquid } from "./xKlerosLiquid.sol";
+import { xKlerosLiquid } from "./xKlerosLiquid.sol";
 
 /**
  *  @title KlerosLiquidExtraViews
@@ -17,14 +17,14 @@ import { KlerosLiquid } from "./xKlerosLiquid.sol";
 contract KlerosLiquidExtraViews {
     /* Storage */
 
-    KlerosLiquid public klerosLiquid;
+    xKlerosLiquid public klerosLiquid;
 
     /* Constructor */
 
     /** @dev Constructs the KlerosLiquidExtraViews contract.
      *  @param _klerosLiquid The address of KlerosLiquid.
      */
-    constructor(KlerosLiquid _klerosLiquid) public {
+    constructor(xKlerosLiquid _klerosLiquid) public {
         klerosLiquid = _klerosLiquid;
     }
 

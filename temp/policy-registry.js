@@ -1,5 +1,5 @@
 /* globals artifacts, contract, expect */
-const PolicyRegistry = artifacts.require('./kleros/PolicyRegistry.sol')
+const PolicyRegistry = artifacts.require('./contract/kleros/PolicyRegistry.sol')
 
 contract('PolicyRegistry', accounts =>
   it('Should let you set subcourt policies.', async () => {

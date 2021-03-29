@@ -1,21 +1,23 @@
 /* globals artifacts, contract, expect, web3 */
 const { soliditySha3 } = require('web3-utils')
+const { deployProxy, upgradeProxy } = require('@openzeppelin/truffle-upgrades');
 const {
   expectThrow
 } = require('openzeppelin-solidity/test/helpers/expectThrow')
 const {
   increaseTime
 } = require('openzeppelin-solidity/test/helpers/increaseTime')
+const {
+  advanceToBlock
+} = require('openzeppelin-solidity/test/helpers/advanceToBlock')
 
-const Pinakion = artifacts.require(
-  '@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol'
-)
-const ConstantNG = artifacts.require(
-  '@kleros/kleros-interaction/contracts/standard/rng/ConstantNG.sol'
-)
-const KlerosLiquid = artifacts.require('./kleros/KlerosLiquid.sol')
+const MockRandomAuRa = artifacts.require('./contracts/mocks/MockRandomAuRa.sol')
+const xKlerosLiquid = artifacts.require('./contracts/kleros/xKlerosLiquid.sol')
 const TwoPartyArbitrable = artifacts.require(
   '@kleros/kleros-interaction/contracts/standard/arbitration/TwoPartyArbitrable.sol'
+)
+const Pinakion = artifacts.require(
+  '@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol'
 )
 
 // Helpers
@@ -83,7 +85,7 @@ const asyncForEach = async (method, iterable) => {
   for (const item of array) await method(item)
 }
 
-contract('KlerosLiquid', accounts => {
+contract('xKlerosLiquid', accounts => {
   let pinakion
   let randomNumber
   let RNG
@@ -96,8 +98,8 @@ contract('KlerosLiquid', accounts => {
   beforeEach(async () => {
     // Deploy contracts and generate subcourts
     pinakion = await Pinakion.new(
-      0x0, // _tokenFactory
-      0x0, // _parentToken
+      0x0000000000000000000000000000000000000000, // _tokenFactory
+      0x0000000000000000000000000000000000000000, // _parentToken
       0, // _parentSnapShotBlock
       'Pinakion', // _tokenName
       18, // _decimalUnits
@@ -105,7 +107,7 @@ contract('KlerosLiquid', accounts => {
       true // _transfersEnabled
     )
     randomNumber = 10
-    RNG = await ConstantNG.new(randomNumber)
+    RNG = await MockRandomAuRa.new(randomNumber)
     governor = accounts[0]
     minStakingTime = 1
     maxDrawingTime = 1
@@ -115,19 +117,25 @@ contract('KlerosLiquid', accounts => {
     } = generateSubcourts(randomInt(4, 2), 3)
     subcourtTree = _subcourtTree
     subcourtMap = _subcourtMap
-    klerosLiquid = await KlerosLiquid.new(
-      governor,
-      pinakion.address,
-      RNG.address,
-      minStakingTime,
-      maxDrawingTime,
-      subcourtTree.hiddenVotes,
-      subcourtTree.minStake,
-      subcourtTree.alpha,
-      subcourtTree.jurorFee,
-      subcourtTree.jurorsForJump,
-      subcourtTree.timesPerPeriod,
-      subcourtTree.sortitionSumTreeK
+
+    klerosLiquid = await deployProxy(
+      xKlerosLiquid,
+      [
+        governor,
+        pinakion.address,
+        RNG.address,
+        minStakingTime,
+        maxDrawingTime,
+        subcourtTree.hiddenVotes,
+        subcourtTree.minStake,
+        subcourtTree.alpha,
+        subcourtTree.jurorFee,
+        subcourtTree.jurorsForJump,
+        subcourtTree.timesPerPeriod,
+        subcourtTree.sortitionSumTreeK
+      ],
+      { unsafeAllowCustomTypes: true }
+
     )
   })
 
@@ -545,8 +553,9 @@ contract('KlerosLiquid', accounts => {
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
     const RNBlock = await klerosLiquid.RNBlock()
+    await advanceToBlock(RNBlock)
     await klerosLiquid.changeRNGenerator(RNG.address)
-    expect(RNBlock.plus(1)).to.deep.equal(await klerosLiquid.RNBlock())
+    expect(RNBlock.plus(40)).to.deep.equal(await klerosLiquid.RNBlock())
   })
 
   it('Should not allow creating subcourts with parents that have a higher minimum stake.', () =>
@@ -580,6 +589,7 @@ contract('KlerosLiquid', accounts => {
   })
 
   it('Should validate all preconditions for passing phases.', async () => {
+    // Staking
     await expectThrow(klerosLiquid.passPhase())
     await increaseTime(minStakingTime)
     await expectThrow(klerosLiquid.passPhase())
@@ -590,11 +600,15 @@ contract('KlerosLiquid', accounts => {
       value: await klerosLiquid.arbitrationCost(extraData)
     })
     await klerosLiquid.passPhase()
-    const zeroRNG = await ConstantNG.new(0)
-    await klerosLiquid.changeRNGenerator(zeroRNG.address)
+
+    // Generating
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceToBlock(RNBlock + 21) // Advance directly to the reveal phase.
     await expectThrow(klerosLiquid.passPhase())
-    await klerosLiquid.changeRNGenerator(RNG.address)
+    await advanceToBlock(RNBlock + 41)
     await klerosLiquid.passPhase()
+
+    // Drawing
     await expectThrow(klerosLiquid.passPhase())
     await increaseTime(maxDrawingTime)
     await klerosLiquid.passPhase()

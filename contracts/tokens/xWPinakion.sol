@@ -10,24 +10,16 @@ pragma solidity ^0.4.24;
 
 import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { MiniMeTokenERC20 as Pinakion } from "@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol";
-
-interface ERC677 {
-    function transfer(address _to, uint256 _value) external returns (bool);
-    function transferFrom(address _from, address _to, uint256 _value) external returns (bool);
-    function approve(address _spender, uint256 _value) external returns (bool);
-}
-
-interface TokenBridge {
-    function relayTokens(ERC677 token, address _receiver, uint256 _value) external;
-}
+import { ITokenBridge } from "../interfaces/ITokenBridge.sol";
+import { IERC677 } from "../interfaces/IERC677.sol";
 
 contract WPNK is Pinakion {
-    ERC677 public xPinakion; // Pinakion to be wrapped. This token is upgradeable. See https://blockscout.com/poa/xdai/address/0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3/transactions.
-    TokenBridge public tokenBridge; // xDai Token Bridge. The Token Bridge is upgradeable. See https://blockscout.com/xdai/mainnet/address/0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d/transactions.
+    IERC677 public xPinakion; // Pinakion on xDai to be wrapped. This token is upgradeable. See https://blockscout.com/poa/xdai/address/0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3.
+    ITokenBridge public tokenBridge; // xDai Token Bridge. The Token Bridge is upgradeable. See https://blockscout.com/xdai/mainnet/address/0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d.
 
     function deposit(uint _amount) external {
-        require(xPinakion.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough approved funds.");
         _generateTokens(msg.sender, _amount);
+        require(xPinakion.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough approved funds.");
     }
 
     function withdraw(uint _amount) external {
