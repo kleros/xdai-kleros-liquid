@@ -14,8 +14,37 @@ import { ITokenBridge } from "../interfaces/ITokenBridge.sol";
 import { IERC677 } from "../interfaces/IERC677.sol";
 
 contract WPNK is Pinakion {
-    IERC677 public xPinakion; // Pinakion on xDai to be wrapped. This token is upgradeable. See https://blockscout.com/poa/xdai/address/0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3.
-    ITokenBridge public tokenBridge; // xDai Token Bridge. The Token Bridge is upgradeable. See https://blockscout.com/xdai/mainnet/address/0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d.
+    IERC677 public constant xPinakion = IERC677(0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3); // Pinakion on xDai to be wrapped. This token is upgradeable.
+    ITokenBridge public constant tokenBridge = ITokenBridge(0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d); // xDai Token Bridge. The Token Bridge is upgradeable.
+
+    /** @dev Constructor to create a MiniMeTokenERC20
+     *  @param _tokenFactory The address of the MiniMeTokenFactory contract that will
+     *   create the Clone token contracts, the token factory needs to be deployed first
+     *  @param _parentToken Address of the parent token, set to 0x0 if it is a new token
+     *  @param _parentSnapShotBlock Block of the parent token that will determine the
+     *   initial distribution of the clone token, set to 0 if it is a new token
+     *  @param _tokenName Name of the new token
+     *  @param _decimalUnits Number of decimals of the new token
+     *  @param _tokenSymbol Token Symbol for the new token
+     *  @param _transfersEnabled If true, tokens will be able to be transferred
+     */
+    constructor(
+        address _tokenFactory,
+        address _parentToken,
+        uint _parentSnapShotBlock,
+        string _tokenName,
+        uint8 _decimalUnits,
+        string _tokenSymbol,
+        bool _transfersEnabled
+    )  Pinakion(
+        _tokenFactory,
+        _parentToken,
+        _parentSnapShotBlock,
+        _tokenName,
+        _decimalUnits,
+        _tokenSymbol,
+        _transfersEnabled
+    ) public {}
 
     function deposit(uint _amount) external {
         _generateTokens(msg.sender, _amount);
@@ -36,10 +65,11 @@ contract WPNK is Pinakion {
         tokenBridge.relayTokens(xPinakion, _receiver, _amount);
     }
 
-    /// @notice Generates `_amount` tokens that are assigned to `_owner`
-    /// @dev See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L372-L386
-    /// @param _owner The address that will be assigned the new tokens
-    /// @param _amount The quantity of tokens generated
+    /** @dev Generates `_amount` tokens that are assigned to `_owner`.
+    *   See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L372-L386.
+    *   @param _owner The address that will be assigned the new tokens.
+    *   @param _amount The quantity of tokens generated.
+    */
     function _generateTokens(address _owner, uint _amount) internal {
         uint curTotalSupply = totalSupply();
         require(curTotalSupply + _amount >= curTotalSupply); // Check for overflow
@@ -50,10 +80,11 @@ contract WPNK is Pinakion {
         emit Transfer(0, _owner, _amount);
     }
 
-    /// @notice Burns `_amount` tokens from `_owner`
-    /// @dev See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L389-L403
-    /// @param _owner The address that will lose the tokens
-    /// @param _amount The quantity of tokens to burn
+    /** @dev Burns `_amount` tokens from `_owner`.
+    *   See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L389-L403.
+    *   @param _owner The address that will lose the tokens.
+    *   @param _amount The quantity of tokens to burn.
+    */
     function _destroyTokens(address _owner, uint _amount) internal {
         if (isContract(controller)) {
             require(TokenController(controller).onTransfer(_owner, address(0x0), _amount));
