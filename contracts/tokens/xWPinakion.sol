@@ -56,7 +56,9 @@ contract WPNK is Pinakion {
         require(xPinakion.transfer(msg.sender, _amount), "The `transfer` function must not fail.");
     }
 
-    /// @dev This function is not strictly needed, but provides a good UX to users who want to get their Mainnet's PNK back. What normally takes 3 transactions, here is done in one go.
+    /** @dev This function is not strictly needed, but provides a good UX to users who want to get their Mainnet's PNK back. 
+     *  What normally takes 3 transactions, here is done in one go. 
+     */ 
     function withdrawAndConvertToPNK(uint _amount, address _receiver) external {
         _destroyTokens(msg.sender, _amount);
         
@@ -66,10 +68,10 @@ contract WPNK is Pinakion {
     }
 
     /** @dev Generates `_amount` tokens that are assigned to `_owner`.
-    *   See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L372-L386.
-    *   @param _owner The address that will be assigned the new tokens.
-    *   @param _amount The quantity of tokens generated.
-    */
+     *  See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L372-L386.
+     *  @param _owner The address that will be assigned the new tokens.
+     *  @param _amount The quantity of tokens generated.
+     */
     function _generateTokens(address _owner, uint _amount) internal {
         uint curTotalSupply = totalSupply();
         require(curTotalSupply + _amount >= curTotalSupply); // Check for overflow
@@ -81,10 +83,10 @@ contract WPNK is Pinakion {
     }
 
     /** @dev Burns `_amount` tokens from `_owner`.
-    *   See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L389-L403.
-    *   @param _owner The address that will lose the tokens.
-    *   @param _amount The quantity of tokens to burn.
-    */
+     *  See https://github.com/Giveth/minime/blob/ea04d950eea153a04c51fa510b068b9dded390cb/contracts/MiniMeToken.sol#L389-L403.
+     *  @param _owner The address that will lose the tokens.
+     *  @param _amount The quantity of tokens to burn.
+     */
     function _destroyTokens(address _owner, uint _amount) internal {
         if (isContract(controller)) {
             require(TokenController(controller).onTransfer(_owner, address(0x0), _amount));

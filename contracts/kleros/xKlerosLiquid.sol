@@ -146,7 +146,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     // General Constants
     uint public constant MAX_STAKE_PATHS = 4; // The maximum number of stake paths a juror can have.
     uint public constant MIN_JURORS = 3; // The global default minimum number of jurors in a dispute.
-    uint public constant NON_PAYABLE_AMOUNT = (2 ** 256 - 2) / 2; // An amount higher than the supply of ETH.
+    uint public constant NON_PAYABLE_AMOUNT = (2 ** 256 - 2) / 2; // An amount higher than the supply of xDai.
     uint public constant ALPHA_DIVISOR = 1e4; // The number to divide `Court.alpha` by.
     // General Contracts
     address public governor; // The governor of the contract.
@@ -404,7 +404,9 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         if (phase == Phase.staking) {
             require(now - lastPhaseChange >= minStakingTime, "The minimum staking time has not passed yet.");
             require(disputesWithoutJurors > 0, "There are no disputes that need jurors.");
-            // collectRoundLength is added so that the last validator to reveal cannot know during the staking phase which random seed is going to be used in the drawing phase.
+            /** collectRoundLength is added so that the last validator to reveal cannot know 
+             *  during the staking phase which random seed is going to be used in the drawing phase.
+             */ 
             RNBlock = RNGenerator.nextCommitPhaseStartBlock() + RNGenerator.collectRoundLength();
             phase = Phase.generating;
         } else if (phase == Phase.generating) {
@@ -575,7 +577,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         }
     }
 
-    /** @dev Computes the token and ETH rewards for a specified appeal in a specified dispute.
+    /** @dev Computes the token and xDai rewards for a specified appeal in a specified dispute.
      *  @param _disputeID The ID of the dispute.
      *  @param _appeal The appeal.
      *  @return tokenReward The token reward.
@@ -604,7 +606,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         }
     }
 
-    /** @dev Repartitions tokens and ETH for a specified appeal in a specified dispute. Can be called in parts.
+    /** @dev Repartitions tokens and xDai for a specified appeal in a specified dispute. Can be called in parts.
      *  `O(i + u * n * (n + p * log_k(j)))` where
      *  `i` is the number of iterations to run,
      *  `u` is the number of jurors that need to be unstaked,
@@ -763,8 +765,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         emit NewPeriod(_disputeID, Period.evidence);
     }
 
-    /** @dev Called when `_owner` sends ether to the MiniMe Token contract.
-     *  @param _owner The address that sent the ether to create tokens.
+    /** @dev Called when `_owner` sends xDai to the MiniMe Token contract.
+     *  @param _owner The address that sent the xDai to create tokens.
      *  @return allowed Whether the operation should be allowed or not.
      */
     function proxyPayment(address _owner) public payable returns(bool allowed) { allowed = false; }
@@ -890,7 +892,10 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         if (!(_stake == 0 || pinakion.balanceOf(_account) >= newTotalStake))
             return false; // The juror's total amount of staked tokens cannot be higher than the juror's balance.
 
-        // If maxTotalStakeAllowed was reduced through governance, totalStake could be greater than maxTotalStakeAllowed. In such case allow unstaking. Always allow unstaking.
+        /** If maxTotalStakeAllowed was reduced through governance, 
+         *  totalStake could be greater than maxTotalStakeAllowed. 
+         *  In such case allow unstaking. Always allow unstaking. 
+         */ 
         if ((totalStake - juror.stakedTokens + newTotalStake > maxTotalStakeAllowed) && (newTotalStake > juror.stakedTokens))
             return false; // Maximum xPNK stake reached. And
         // Update total stake. 
