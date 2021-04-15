@@ -14,8 +14,8 @@ import { ITokenBridge } from "../interfaces/ITokenBridge.sol";
 import { IERC677 } from "../interfaces/IERC677.sol";
 
 contract WPNK is Pinakion {
-    IERC677 public constant xPinakion = IERC677(0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3); // Pinakion on xDai to be wrapped. This token is upgradeable.
-    ITokenBridge public constant tokenBridge = ITokenBridge(0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d); // xDai Token Bridge. The Token Bridge is upgradeable.
+    IERC677 public xPinakion; // Pinakion on xDai to be wrapped. This token is upgradeable.
+    ITokenBridge public tokenBridge; // xDai Token Bridge. The Token Bridge is upgradeable.
 
     /** @dev Constructor to create a MiniMeTokenERC20
      *  @param _tokenFactory The address of the MiniMeTokenFactory contract that will
@@ -35,7 +35,9 @@ contract WPNK is Pinakion {
         string _tokenName,
         uint8 _decimalUnits,
         string _tokenSymbol,
-        bool _transfersEnabled
+        bool _transfersEnabled,
+        IERC677 _xPinakion,
+        ITokenBridge _tokenBridge
     )  Pinakion(
         _tokenFactory,
         _parentToken,
@@ -44,7 +46,10 @@ contract WPNK is Pinakion {
         _decimalUnits,
         _tokenSymbol,
         _transfersEnabled
-    ) public {}
+    ) public {
+        xPinakion = _xPinakion;
+        tokenBridge = _tokenBridge;
+    }
 
     function deposit(uint _amount) external {
         _generateTokens(msg.sender, _amount);

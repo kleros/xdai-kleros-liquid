@@ -13,12 +13,11 @@ const {
 
 const MockRandomAuRa = artifacts.require('./contracts/mocks/MockRandomAuRa.sol')
 const xKlerosLiquid = artifacts.require('./contracts/kleros/xKlerosLiquid.sol')
+const Pinakion = artifacts.require('./contracts/tokens/WPNK.sol')
 const TwoPartyArbitrable = artifacts.require(
   '@kleros/kleros-interaction/contracts/standard/arbitration/TwoPartyArbitrable.sol'
 )
-const Pinakion = artifacts.require(
-  '@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol'
-)
+const SortitionSumTreeFactory = artifacts.require('@kleros/kleros/contracts/data-structures/SortitionSumTreeFactory.sol');
 
 // Helpers
 const randomInt = (max, min = 1) =>
@@ -75,7 +74,7 @@ const checkOnlyByGovernor = async (
 ) => {
   await method(nextValue) // Set the next value
   expect(await getter()).to.deep.equal(
-    nextValue === Number(nextValue) ? web3.toBigNumber(nextValue) : nextValue
+    nextValue === Number(nextValue) ? web3.utils.toBN(nextValue) : nextValue
   ) // Check it was set properly
   await expectThrow(method(value, { from: invalidFrom })) // Throw when setting from a non governor address
   await method(value, nextFrom && { from: nextFrom }) // Set back to the original value
@@ -98,13 +97,15 @@ contract('xKlerosLiquid', accounts => {
   beforeEach(async () => {
     // Deploy contracts and generate subcourts
     pinakion = await Pinakion.new(
-      0x0000000000000000000000000000000000000000, // _tokenFactory
-      0x0000000000000000000000000000000000000000, // _parentToken
+      "0x0000000000000000000000000000000000000000", // _tokenFactory
+      "0x0000000000000000000000000000000000000000", // _parentToken
       0, // _parentSnapShotBlock
-      'Pinakion', // _tokenName
+      'Wrapped Pinakion', // _tokenName
       18, // _decimalUnits
-      'PNK', // _tokenSymbol
-      true // _transfersEnabled
+      'WPNK', // _tokenSymbol
+      true, // _transfersEnabled
+      "0x0000000000000000000000000000000000000000", // xPinakion
+      "0x0000000000000000000000000000000000000000" // tokenBridge
     )
     randomNumber = 10
     RNG = await MockRandomAuRa.new(randomNumber)
@@ -118,6 +119,8 @@ contract('xKlerosLiquid', accounts => {
     subcourtTree = _subcourtTree
     subcourtMap = _subcourtMap
 
+    const sortitionSumTreeFactoryLib = await SortitionSumTreeFactory.new()
+    await xKlerosLiquid.link("SortitionSumTreeFactory", sortitionSumTreeFactoryLib.address)
     klerosLiquid = await deployProxy(
       xKlerosLiquid,
       [
@@ -134,9 +137,10 @@ contract('xKlerosLiquid', accounts => {
         subcourtTree.timesPerPeriod,
         subcourtTree.sortitionSumTreeK
       ],
-      { unsafeAllowCustomTypes: true }
-
+      { unsafeAllowLinkedLibraries: true }
     )
+
+    await pinakion.changeController(klerosLiquid.address)
   })
 
   it('Should implement the spec, https://docs.google.com/document/d/17aqJ0LTLJrQNSk07Cwop4JVRmicaCLi1I4UfYeSw96Y.', async () => {
@@ -196,12 +200,12 @@ contract('xKlerosLiquid', accounts => {
     await asyncForEach(
       async subcourt =>
         expect(await klerosLiquid.courts(subcourt.ID)).to.deep.equal([
-          web3.toBigNumber(subcourt.parent),
+          web3.utils.toBN(subcourt.parent),
           subcourt.hiddenVotes,
-          web3.toBigNumber(subcourt.minStake),
-          web3.toBigNumber(subcourt.alpha),
-          web3.toBigNumber(subcourt.jurorFee),
-          web3.toBigNumber(subcourt.jurorsForJump)
+          web3.utils.toBN(subcourt.minStake),
+          web3.utils.toBN(subcourt.alpha),
+          web3.utils.toBN(subcourt.jurorFee),
+          web3.utils.toBN(subcourt.jurorsForJump)
         ]),
       subcourtMap
     )
@@ -386,10 +390,10 @@ contract('xKlerosLiquid', accounts => {
 
         // Test `appealPeriod` and `disputeStatus`
         const appealPeriod = await klerosLiquid.appealPeriod(dispute.ID)
-        expect(appealPeriod[0]).to.deep.equal(web3.toBigNumber(0))
-        expect(appealPeriod[1]).to.deep.equal(web3.toBigNumber(0))
+        expect(appealPeriod[0]).to.deep.equal(web3.utils.toBN(0))
+        expect(appealPeriod[1]).to.deep.equal(web3.utils.toBN(0))
         expect(await klerosLiquid.disputeStatus(dispute.ID)).to.deep.equal(
-          web3.toBigNumber(0)
+          web3.utils.toBN(0)
         )
 
         // Vote
@@ -403,13 +407,13 @@ contract('xKlerosLiquid', accounts => {
         // Test `appealPeriod` and `disputeStatus`
         const appealPeriod2 = await klerosLiquid.appealPeriod(dispute.ID)
         expect(appealPeriod2[0]).to.deep.equal(
-          web3.toBigNumber(appealPeriodStart)
+          web3.utils.toBN(appealPeriodStart)
         )
         expect(appealPeriod2[1]).to.deep.equal(
-          web3.toBigNumber(appealPeriodStart).plus(subcourt.timesPerPeriod[3])
+          web3.utils.toBN(appealPeriodStart).plus(subcourt.timesPerPeriod[3])
         )
         expect(await klerosLiquid.disputeStatus(dispute.ID)).to.deep.equal(
-          web3.toBigNumber(1)
+          web3.utils.toBN(1)
         )
 
         // Appeal or execute
@@ -464,7 +468,7 @@ contract('xKlerosLiquid', accounts => {
           await klerosLiquid.passPeriod(dispute.ID)
           // Test `disputeStatus`
           expect(await klerosLiquid.disputeStatus(dispute.ID)).to.deep.equal(
-            web3.toBigNumber(2)
+            web3.utils.toBN(2)
           )
           for (let i = 0; i <= dispute.appeals; i++) {
             const voteCounters = Object.entries(
@@ -489,7 +493,7 @@ contract('xKlerosLiquid', accounts => {
               // eslint-disable-next-line no-loop-func
               (await new Promise((resolve, reject) =>
                 klerosLiquid
-                  .TokenAndETHShift(
+                  .TokenAndXDaiShift(
                     { _disputeID: dispute.ID },
                     { fromBlock: executeBlockNumber }
                   )
@@ -497,7 +501,7 @@ contract('xKlerosLiquid', accounts => {
               ))
                 .reduce(
                   (acc, e) => acc.plus(e.args._ETHAmount),
-                  web3.toBigNumber(0)
+                  web3.utils.toBN(0)
                 )
                 .toNumber()
             ).to.be.closeTo(
@@ -506,7 +510,7 @@ contract('xKlerosLiquid', accounts => {
             )
           }
           expect((await klerosLiquid.jurors(governor))[1]).to.deep.equal(
-            web3.toBigNumber(0)
+            web3.utils.toBN(0)
           )
         }
 
@@ -711,6 +715,30 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.setStake(subcourtTree.children[0].children[0].ID, 0)
   })
 
+  it('Should reject staking when the max limit is reached.', async () => {
+    await asyncForEach(
+      subcourt =>
+        klerosLiquid.createSubcourt(
+          subcourt.parent,
+          subcourt.hiddenVotes,
+          subcourt.minStake,
+          subcourt.alpha,
+          subcourt.jurorFee,
+          subcourt.jurorsForJump,
+          subcourt.timesPerPeriod,
+          subcourt.sortitionSumTreeK
+        ),
+      subcourtMap
+    )
+    const stake1 = web3.utils.toWei('20000000','ether') // 20M PNK
+    const stake2 = web3.utils.toWei('20000000','ether') // 20M PNK
+    await pinakion.generateTokens(governor, stake1.add(stake2))
+    await klerosLiquid.setStake(subcourtTree.ID, stake1)
+    await expectThrow(
+      klerosLiquid.setStake(subcourtTree.ID, stake2)
+    )
+  })
+
   it('Should prevent overflows when executing delayed set stakes.', async () => {
     const extraData = `0x${(0).toString(16).padStart(64, '0')}${(1)
       .toString(16)
@@ -869,10 +897,10 @@ contract('xKlerosLiquid', accounts => {
     await expectThrow(klerosLiquid.execute(disputeID, 0, -1))
     await klerosLiquid.execute(disputeID, 0, numberOfJurors * 2 + 1)
     expect((await klerosLiquid.jurors(governor))[0]).to.deep.equal(
-      web3.toBigNumber(0)
+      web3.utils.toBN(0)
     )
     expect(await klerosLiquid.stakeOf(governor, subcourtTree.ID)).to.deep.equal(
-      web3.toBigNumber(0)
+      web3.utils.toBN(0)
     )
   })
 
@@ -939,10 +967,10 @@ contract('xKlerosLiquid', accounts => {
       value: await klerosLiquid.arbitrationCost(extraData)
     })
     expect((await klerosLiquid.disputes(disputeID))[0]).to.deep.equal(
-      web3.toBigNumber(0)
+      web3.utils.toBN(0)
     )
     expect((await klerosLiquid.getDispute(disputeID))[0][0]).to.deep.equal(
-      web3.toBigNumber(3)
+      web3.utils.toBN(3)
     )
   })
 
@@ -952,10 +980,10 @@ contract('xKlerosLiquid', accounts => {
       value: await klerosLiquid.arbitrationCost(0)
     })
     expect((await klerosLiquid.disputes(disputeID))[0]).to.deep.equal(
-      web3.toBigNumber(0)
+      web3.utils.toBN(0)
     )
     expect((await klerosLiquid.getDispute(disputeID))[0][0]).to.deep.equal(
-      web3.toBigNumber(3)
+      web3.utils.toBN(3)
     )
   })
 })
