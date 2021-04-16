@@ -5,15 +5,17 @@ const {
   expectThrow
 } = require('openzeppelin-solidity/test/helpers/expectThrow')
 const {
-  increaseTime
-} = require('openzeppelin-solidity/test/helpers/increaseTime')
-const {
-  advanceToBlock
-} = require('openzeppelin-solidity/test/helpers/advanceToBlock')
+  increaseTime,
+  advanceBlock,
+  advanceBlockTo,
+  latestBlockNumber
+} = require('../helpers/time');
+const { MAX_UINT256 } = require('@openzeppelin/test-helpers/src/constants');
 
 const MockRandomAuRa = artifacts.require('./contracts/mocks/MockRandomAuRa.sol')
 const xKlerosLiquid = artifacts.require('./contracts/kleros/xKlerosLiquid.sol')
-const Pinakion = artifacts.require('./contracts/tokens/WPNK.sol')
+const xPinakion = artifacts.require('./contracts/mocks/BridgedPinakionMock.sol')
+const wPinakion = artifacts.require('./contracts/tokens/WPNK.sol')
 const TwoPartyArbitrable = artifacts.require(
   '@kleros/kleros-interaction/contracts/standard/arbitration/TwoPartyArbitrable.sol'
 )
@@ -77,7 +79,12 @@ const checkOnlyByGovernor = async (
     nextValue === Number(nextValue) ? web3.utils.toBN(nextValue) : nextValue
   ) // Check it was set properly
   await expectThrow(method(value, { from: invalidFrom })) // Throw when setting from a non governor address
-  await method(value, nextFrom && { from: nextFrom }) // Set back to the original value
+  if (typeof nextFrom === 'undefined') {
+    await method(value) // Set back to the original value
+  } else {
+    await method(value, { from: nextFrom }) // Set back to the original value
+  }
+  
 }
 const asyncForEach = async (method, iterable) => {
   const array = Array.isArray(iterable) ? iterable : Object.values(iterable)
@@ -85,6 +92,7 @@ const asyncForEach = async (method, iterable) => {
 }
 
 contract('xKlerosLiquid', accounts => {
+  let bridgedPinakion
   let pinakion
   let randomNumber
   let RNG
@@ -95,8 +103,14 @@ contract('xKlerosLiquid', accounts => {
   let subcourtMap
   let klerosLiquid
   beforeEach(async () => {
+    governor = accounts[0]
     // Deploy contracts and generate subcourts
-    pinakion = await Pinakion.new(
+    bridgedPinakion = await xPinakion.new(
+      governor, // receiver
+      MAX_UINT256 // initial supply
+    )
+
+    pinakion = await wPinakion.new(
       "0x0000000000000000000000000000000000000000", // _tokenFactory
       "0x0000000000000000000000000000000000000000", // _parentToken
       0, // _parentSnapShotBlock
@@ -104,12 +118,11 @@ contract('xKlerosLiquid', accounts => {
       18, // _decimalUnits
       'WPNK', // _tokenSymbol
       true, // _transfersEnabled
-      "0x0000000000000000000000000000000000000000", // xPinakion
+      bridgedPinakion.address, // xPinakion
       "0x0000000000000000000000000000000000000000" // tokenBridge
     )
     randomNumber = 10
     RNG = await MockRandomAuRa.new(randomNumber)
-    governor = accounts[0]
     minStakingTime = 1
     maxDrawingTime = 1
     const {
@@ -142,7 +155,6 @@ contract('xKlerosLiquid', accounts => {
 
     await pinakion.changeController(klerosLiquid.address)
   })
-
   it('Should implement the spec, https://docs.google.com/document/d/17aqJ0LTLJrQNSk07Cwop4JVRmicaCLi1I4UfYeSw96Y.', async () => {
     // Test general governance
     await checkOnlyByGovernor(
@@ -281,7 +293,8 @@ contract('xKlerosLiquid', accounts => {
     ]
 
     // Create the disputes and set stakes directly
-    await pinakion.generateTokens(governor, -1)
+    await bridgedPinakion.approve(pinakion.address, MAX_UINT256, {from: governor})
+    await pinakion.deposit(MAX_UINT256, {from: governor})
     for (const dispute of disputes) {
       const extraData = `0x${dispute.subcourtID
         .toString(16)
@@ -300,6 +313,8 @@ contract('xKlerosLiquid', accounts => {
     // Set stakes using delayed actions
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
     for (const dispute of disputes)
       await klerosLiquid.setStake(
@@ -331,11 +346,13 @@ contract('xKlerosLiquid', accounts => {
         // Generate random number
         await increaseTime(minStakingTime)
         await klerosLiquid.passPhase()
+        const RNBlock = await klerosLiquid.RNBlock()
+        await advanceBlockTo(RNBlock.toNumber())
         await klerosLiquid.passPhase()
 
         // Draw
         const stakedTokensBefore = (await klerosLiquid.jurors(governor))[1]
-        const drawBlockNumber = (await klerosLiquid.drawJurors(dispute.ID, -1))
+        const drawBlockNumber = (await klerosLiquid.drawJurors(dispute.ID, MAX_UINT256))
           .receipt.blockNumber
         numberOfDraws.push(
           // eslint-disable-next-line no-loop-func
@@ -486,7 +503,7 @@ contract('xKlerosLiquid', accounts => {
             const executeBlockNumber = (await klerosLiquid.execute(
               dispute.ID,
               i,
-              -1
+              MAX_UINT256
             )).receipt.blockNumber
             expect(await pinakion.balanceOf(governor)).to.deep.equal(PNKBefore)
             expect(
@@ -529,7 +546,9 @@ contract('xKlerosLiquid', accounts => {
   it('Should execute governor proposals.', async () => {
     const transferAmount = 100
     const PNKBefore = await pinakion.balanceOf(klerosLiquid.address)
-    await pinakion.generateTokens(klerosLiquid.address, transferAmount)
+    await bridgedPinakion.approve(pinakion.address, MAX_UINT256, {from: governor})
+    await pinakion.deposit(MAX_UINT256, {from: governor})
+    await pinakion.transfer(klerosLiquid.address, transferAmount, {from: governor})
     await expectThrow(
       klerosLiquid.executeGovernorProposal(
         pinakion.address,
@@ -557,9 +576,9 @@ contract('xKlerosLiquid', accounts => {
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
     const RNBlock = await klerosLiquid.RNBlock()
-    await advanceToBlock(RNBlock)
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.changeRNGenerator(RNG.address)
-    expect(RNBlock.plus(40)).to.deep.equal(await klerosLiquid.RNBlock())
+    expect(RNBlock.toNumber() + 4*2).to.deep.equal((await klerosLiquid.RNBlock()).toNumber())
   })
 
   it('Should not allow creating subcourts with parents that have a higher minimum stake.', () =>
@@ -607,9 +626,10 @@ contract('xKlerosLiquid', accounts => {
 
     // Generating
     const RNBlock = await klerosLiquid.RNBlock()
-    await advanceToBlock(RNBlock + 21) // Advance directly to the reveal phase.
+    const currentBlock = await latestBlockNumber()
+    await advanceBlockTo(currentBlock + 2) // Advance directly to the reveal phase.
     await expectThrow(klerosLiquid.passPhase())
-    await advanceToBlock(RNBlock + 41)
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
 
     // Drawing
@@ -629,15 +649,18 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.createDispute(numberOfChoices, extraData, {
       value: await klerosLiquid.arbitrationCost(extraData)
     })
-    await pinakion.generateTokens(governor, -1)
+    await bridgedPinakion.approve(pinakion.address, MAX_UINT256, {from: governor})
+    await pinakion.deposit(MAX_UINT256, {from: governor})
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
     await expectThrow(klerosLiquid.passPeriod(disputeID))
     await increaseTime(subcourtTree.timesPerPeriod[0])
     await expectThrow(klerosLiquid.passPeriod(disputeID))
-    await klerosLiquid.drawJurors(disputeID, -1)
+    await klerosLiquid.drawJurors(disputeID, MAX_UINT256)
     await klerosLiquid.passPeriod(disputeID)
     await expectThrow(klerosLiquid.passPeriod(disputeID))
     await klerosLiquid.castCommit(
@@ -681,7 +704,8 @@ contract('xKlerosLiquid', accounts => {
       subcourtTree.children[1].minStake +
       subcourtTree.children[0].children[0].minStake +
       subcourtTree.children[0].children[1].minStake
-    await pinakion.generateTokens(governor, PNK)
+    await bridgedPinakion.approve(pinakion.address, PNK, {from: governor})
+    await pinakion.deposit(PNK, {from: governor})
     await expectThrow(
       klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake - 1)
     )
@@ -732,10 +756,12 @@ contract('xKlerosLiquid', accounts => {
     )
     const stake1 = web3.utils.toWei('20000000','ether') // 20M PNK
     const stake2 = web3.utils.toWei('20000000','ether') // 20M PNK
-    await pinakion.generateTokens(governor, stake1.add(stake2))
+    const totalStake = web3.utils.toWei('40000000','ether') // 40M PNK
+    await bridgedPinakion.approve(pinakion.address, totalStake, {from: governor})
+    await pinakion.deposit(totalStake, {from: governor})
     await klerosLiquid.setStake(subcourtTree.ID, stake1)
     await expectThrow(
-      klerosLiquid.setStake(subcourtTree.ID, stake2)
+      klerosLiquid.setStake(subcourtTree.ID, totalStake)
     )
   })
 
@@ -750,11 +776,15 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.passPhase()
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
+
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
+
     await increaseTime(maxDrawingTime)
     await klerosLiquid.passPhase()
     await klerosLiquid.executeDelayedSetStakes(1)
-    await expectThrow(klerosLiquid.executeDelayedSetStakes(-1))
+    await expectThrow(klerosLiquid.executeDelayedSetStakes(MAX_UINT256))
   })
 
   it('Should prevent overflows and going out of range when drawing jurors.', async () => {
@@ -768,13 +798,16 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.createDispute(numberOfChoices, extraData, {
       value: await klerosLiquid.arbitrationCost(extraData)
     })
-    await pinakion.generateTokens(governor, -1)
+    await bridgedPinakion.approve(pinakion.address, MAX_UINT256, {from: governor})
+    await pinakion.deposit(MAX_UINT256, {from: governor})
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
     await klerosLiquid.drawJurors(disputeID, 1)
-    await expectThrow(klerosLiquid.drawJurors(disputeID, -1))
+    await expectThrow(klerosLiquid.drawJurors(disputeID, MAX_UINT256))
     await klerosLiquid.drawJurors(disputeID, numberOfJurors + 1)
   })
 
@@ -789,17 +822,22 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.createDispute(numberOfChoices, extraData, {
       value: await klerosLiquid.arbitrationCost(extraData)
     })
-    await pinakion.generateTokens(governor, -1)
+    await bridgedPinakion.approve(pinakion.address, MAX_UINT256, {from: governor})
+    await pinakion.deposit(MAX_UINT256, {from: governor})
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
     await increaseTime(subcourtTree.timesPerPeriod[0])
-    await klerosLiquid.drawJurors(disputeID, -1)
+    await klerosLiquid.drawJurors(disputeID, MAX_UINT256)
     await klerosLiquid.passPeriod(disputeID)
+    console.log("1")
     await expectThrow(
       klerosLiquid.castCommit(disputeID, [numberOfJurors - 1], 0)
     )
+    console.log("1")
     await expectThrow(
       klerosLiquid.castCommit(
         disputeID,
@@ -808,6 +846,7 @@ contract('xKlerosLiquid', accounts => {
         { from: accounts[1] }
       )
     )
+    console.log("1")
     await klerosLiquid.castCommit(
       disputeID,
       [numberOfJurors - 1],
@@ -820,6 +859,7 @@ contract('xKlerosLiquid', accounts => {
         soliditySha3(numberOfChoices, numberOfJurors - 1)
       )
     )
+    console.log("1")
     await klerosLiquid.passPeriod(disputeID)
     await expectThrow(
       klerosLiquid.castVote(disputeID, [], numberOfChoices, numberOfJurors - 1)
@@ -832,6 +872,7 @@ contract('xKlerosLiquid', accounts => {
         numberOfJurors - 1
       )
     )
+    console.log("1")
     await expectThrow(
       klerosLiquid.castVote(
         disputeID,
@@ -849,12 +890,14 @@ contract('xKlerosLiquid', accounts => {
         numberOfJurors
       )
     )
+    console.log("1")
     await klerosLiquid.castVote(
       disputeID,
       [numberOfJurors - 1],
       numberOfChoices,
       numberOfJurors - 1
     )
+    console.log("1")
     await expectThrow(
       klerosLiquid.castVote(
         disputeID,
@@ -876,15 +919,17 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.createDispute(numberOfChoices, extraData, {
       value: await klerosLiquid.arbitrationCost(extraData)
     })
-    await pinakion.generateTokens(governor, subcourtTree.minStake * 2)
-    await pinakion.changeController(klerosLiquid.address)
+    await bridgedPinakion.approve(pinakion.address, subcourtTree.minStake * 2, {from: governor})
+    await pinakion.deposit(subcourtTree.minStake * 2, {from: governor})
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
     await expectThrow(pinakion.transfer(accounts[1], subcourtTree.minStake * 2))
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
     await increaseTime(subcourtTree.timesPerPeriod[0])
-    await klerosLiquid.drawJurors(disputeID, -1)
+    await klerosLiquid.drawJurors(disputeID, MAX_UINT256)
     await klerosLiquid.passPeriod(disputeID)
     await increaseTime(subcourtTree.timesPerPeriod[1])
     await klerosLiquid.passPeriod(disputeID)
@@ -894,7 +939,7 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.passPeriod(disputeID)
     await klerosLiquid.passPhase()
     await klerosLiquid.execute(disputeID, 0, 1)
-    await expectThrow(klerosLiquid.execute(disputeID, 0, -1))
+    await expectThrow(klerosLiquid.execute(disputeID, 0, MAX_UINT256))
     await klerosLiquid.execute(disputeID, 0, numberOfJurors * 2 + 1)
     expect((await klerosLiquid.jurors(governor))[0]).to.deep.equal(
       web3.utils.toBN(0)
@@ -929,13 +974,16 @@ contract('xKlerosLiquid', accounts => {
       from: partyB,
       value: arbitrationCost
     })
-    await pinakion.generateTokens(governor, -1)
+    await bridgedPinakion.approve(pinakion.address, MAX_UINT256, {from: governor})
+    await pinakion.deposit(MAX_UINT256, {from: governor})
     await klerosLiquid.setStake(subcourtTree.ID, subcourtTree.minStake)
     await increaseTime(minStakingTime)
     await klerosLiquid.passPhase()
+    const RNBlock = await klerosLiquid.RNBlock()
+    await advanceBlockTo(RNBlock.toNumber())
     await klerosLiquid.passPhase()
     await increaseTime(subcourtTree.timesPerPeriod[0])
-    await klerosLiquid.drawJurors(disputeID, -1)
+    await klerosLiquid.drawJurors(disputeID, MAX_UINT256)
     await klerosLiquid.passPeriod(disputeID)
     await klerosLiquid.castCommit(
       disputeID,
@@ -955,7 +1003,9 @@ contract('xKlerosLiquid', accounts => {
     const ETHBefore = await web3.eth.getBalance(partyB)
     await klerosLiquid.executeRuling(disputeID)
     await expectThrow(klerosLiquid.executeRuling(disputeID))
-    expect((await web3.eth.getBalance(partyB)).gt(ETHBefore)).to.equal(true)
+    const ETHAfter = await web3.eth.getBalance(partyB)
+    console.log(typeof ETHAfter)
+    expect(ETHAfter.gt(ETHBefore)).to.equal(true)
   })
 
   it('Should handle invalid extra data.', async () => {
