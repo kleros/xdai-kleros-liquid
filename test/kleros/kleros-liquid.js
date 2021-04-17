@@ -15,7 +15,7 @@ const { MAX_UINT256 } = require('@openzeppelin/test-helpers/src/constants');
 const MockRandomAuRa = artifacts.require('./contracts/mocks/MockRandomAuRa.sol')
 const xKlerosLiquid = artifacts.require('./contracts/kleros/xKlerosLiquid.sol')
 const xPinakion = artifacts.require('./contracts/mocks/BridgedPinakionMock.sol')
-const wPinakion = artifacts.require('./contracts/tokens/WPNK.sol')
+const wPinakion = artifacts.require('./contracts/tokens/WrappedPinakion.sol')
 const TwoPartyArbitrable = artifacts.require(
   '@kleros/kleros-interaction/contracts/standard/arbitration/TwoPartyArbitrable.sol'
 )
@@ -105,21 +105,22 @@ contract('xKlerosLiquid', accounts => {
   beforeEach(async () => {
     governor = accounts[0]
     // Deploy contracts and generate subcourts
-    bridgedPinakion = await xPinakion.new(
-      governor, // receiver
-      MAX_UINT256 // initial supply
+    bridgedPinakion = await deployProxy(
+      xPinakion,
+      [
+        governor, // receiver
+        MAX_UINT256 // initial supply
+      ]
     )
 
-    pinakion = await wPinakion.new(
-      "0x0000000000000000000000000000000000000000", // _tokenFactory
-      "0x0000000000000000000000000000000000000000", // _parentToken
-      0, // _parentSnapShotBlock
-      'Wrapped Pinakion', // _tokenName
-      18, // _decimalUnits
-      'WPNK', // _tokenSymbol
-      true, // _transfersEnabled
-      bridgedPinakion.address, // xPinakion
-      "0x0000000000000000000000000000000000000000" // tokenBridge
+    pinakion = await deployProxy(
+      wPinakion,
+      [
+        'Wrapped Pinakion', // _tokenName
+        'WPNK', // _tokenSymbol
+        bridgedPinakion.address, // xPinakion
+        "0x0000000000000000000000000000000000000000" // tokenBridge
+      ]
     )
     randomNumber = 10
     RNG = await MockRandomAuRa.new(randomNumber)
@@ -155,6 +156,7 @@ contract('xKlerosLiquid', accounts => {
 
     await pinakion.changeController(klerosLiquid.address)
   })
+
   it('Should implement the spec, https://docs.google.com/document/d/17aqJ0LTLJrQNSk07Cwop4JVRmicaCLi1I4UfYeSw96Y.', async () => {
     // Test general governance
     await checkOnlyByGovernor(
@@ -553,13 +555,13 @@ contract('xKlerosLiquid', accounts => {
       klerosLiquid.executeGovernorProposal(
         pinakion.address,
         transferAmount,
-        pinakion.contract.transfer.getData(governor, transferAmount)
+        pinakion.contract.methods.transfer(governor, transferAmount).encodeABI()
       )
     )
     await klerosLiquid.executeGovernorProposal(
       pinakion.address,
       0,
-      pinakion.contract.transfer.getData(governor, transferAmount)
+      pinakion.contract.methods.transfer(governor, transferAmount).encodeABI()
     )
     expect(await pinakion.balanceOf(klerosLiquid.address)).to.deep.equal(
       PNKBefore
@@ -610,7 +612,7 @@ contract('xKlerosLiquid', accounts => {
       )
     )
   })
-
+  
   it('Should validate all preconditions for passing phases.', async () => {
     // Staking
     await expectThrow(klerosLiquid.passPhase())
@@ -682,7 +684,6 @@ contract('xKlerosLiquid', accounts => {
     await klerosLiquid.passPeriod(disputeID)
     await expectThrow(klerosLiquid.passPeriod(disputeID))
   })
-
   it('Should validate all preconditions for setting stake.', async () => {
     await asyncForEach(
       subcourt =>
@@ -1036,4 +1037,5 @@ contract('xKlerosLiquid', accounts => {
       web3.utils.toBN(3)
     )
   })
+
 })

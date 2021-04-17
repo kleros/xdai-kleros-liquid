@@ -1,11 +1,13 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
-import "openzeppelin-solidity/contracts/token/ERC20/StandardBurnableToken.sol";
-import "openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol";
+import "openzeppelin-eth/contracts/token/ERC20/ERC20.sol";
 
 // mock class using ERC20
-contract BridgedPinakionMock is MintableToken, StandardBurnableToken {
-    constructor(address initialAccount, uint256 initialBalance) public {
-        mint(initialAccount, initialBalance);
+contract BridgedPinakionMock is ERC20 { 
+    function initialize(
+        address _initialAccount, 
+        uint _initialSupply
+    ) public initializer {
+        _mint(_initialAccount, _initialSupply);
     }
 }

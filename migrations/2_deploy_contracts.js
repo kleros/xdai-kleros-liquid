@@ -1,29 +1,19 @@
 const { deployProxy } = require('@openzeppelin/truffle-upgrades');
 
-var xWPinakion = artifacts.require("./WPNK.sol");
+var WrappedPinakion = artifacts.require("./WrappedPinakion.sol");
 var xKlerosLiquid = artifacts.require("./xKlerosLiquid.sol");
 var SortitionSumTreeFactory = artifacts.require("./SortitionSumTreeFactory.sol");
 
 const pinakionParams = {
   "xdai": {
-    tokenFactory: "0x0000000000000000000000000000000000000000",
-    parentToken: "0x0000000000000000000000000000000000000000",
-    parentSnapShotBlock: 0,
     tokenName: "Wrapped Pinakion on xDai",
-    decimalUnits: 18,
     tokenSymbol: "xWPNK",
-    transfersEnabled: true,
     xPinakion: "0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3",
     tokenBridge: "0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d"
   },
   "sokol-fork": {
-    tokenFactory: "0x0000000000000000000000000000000000000000",
-    parentToken: "0x0000000000000000000000000000000000000000",
-    parentSnapShotBlock: 0,
     tokenName: "Wrapped Pinakion on Sokol",
-    decimalUnits: 18,
     tokenSymbol: "SWPNK",
-    transfersEnabled: true,
     xPinakion: "0x184A7Fc4fa965D18Af84C6d97dfed8C4561ff8c2",
     tokenBridge: "0x40cdff886715a4012fad0219d15c98bb149aef0e"
   }
@@ -66,17 +56,15 @@ module.exports = async function(deployer, network) {
     return
   }
 
-  const PNKInstance = await deployer.deploy(
-    xWPinakion,
-    pinakionParams[network].tokenFactory,
-    pinakionParams[network].parentToken,
-    pinakionParams[network].parentSnapShotBlock,
-    pinakionParams[network].tokenName,
-    pinakionParams[network].decimalUnits,
-    pinakionParams[network].tokenSymbol,
-    pinakionParams[network].transfersEnabled,
-    pinakionParams[network].xPinakion,
-    pinakionParams[network].tokenBridge
+  const PNKInstance = await deployProxy(
+    WrappedPinakion,
+    [
+      pinakionParams[network].tokenName,
+      pinakionParams[network].tokenSymbol,
+      pinakionParams[network].xPinakion,
+      pinakionParams[network].tokenBridge
+    ],
+    { deployer }
   );
 
   xKlerosLiquidParams[network].governor = deployer.networks[network].from; // deployer address
