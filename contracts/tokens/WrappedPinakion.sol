@@ -172,7 +172,16 @@ contract WrappedPinakion is Initializable {
         if (isContract(controller)) {
             require(TokenController(controller).onTransfer(_sender, _recipient, _amount));
         }
-        allowance[_sender][msg.sender] = allowance[_sender][msg.sender].sub(_amount); // ERC20: transfer amount exceeds allowance
+
+        /** The controller of this contract can move tokens around at will,
+         *  this is important to recognize! Confirm that you trust the
+         *  controller of this contract, which in most situations should be
+         *  another open source smart contract or 0x0.
+         */
+        if (msg.sender != controller) {
+            allowance[_sender][msg.sender] = allowance[_sender][msg.sender].sub(_amount); // ERC20: transfer amount exceeds allowance.
+        }
+        
         balances[_sender] = balances[_sender].sub(_amount); // ERC20: transfer amount exceeds balance
         balances[_recipient] = balances[_recipient].add(_amount);
         emit Transfer(_sender, _recipient, _amount);
@@ -184,6 +193,11 @@ contract WrappedPinakion is Initializable {
      *  @param _amount The amount of base units the entity will be allowed to spend.
      */
     function approve(address _spender, uint256 _amount) public returns (bool) {
+        // Alerts the token controller of the approve function call
+        if (isContract(controller)) {
+            require(TokenController(controller).onApprove(msg.sender, _spender, _amount), "Token controller does not approve.");
+        }
+
         allowance[msg.sender][_spender] = _amount;
         emit Approval(msg.sender, _spender, _amount);
         return true;
@@ -195,6 +209,11 @@ contract WrappedPinakion is Initializable {
      */
     function increaseAllowance(address _spender, uint256 _addedValue) public returns (bool) {
         uint256 newAllowance = allowance[msg.sender][_spender].add(_addedValue);
+        // Alerts the token controller of the approve function call
+        if (isContract(controller)) {
+            require(TokenController(controller).onApprove(msg.sender, _spender, newAllowance), "Token controller does not approve.");
+        }
+
         allowance[msg.sender][_spender] = newAllowance;
         emit Approval(msg.sender, _spender, newAllowance);
         return true;
@@ -206,6 +225,11 @@ contract WrappedPinakion is Initializable {
      */
     function decreaseAllowance(address _spender, uint256 _subtractedValue) public returns (bool) {
         uint256 newAllowance = allowance[msg.sender][_spender].sub(_subtractedValue); // ERC20: decreased allowance below zero
+        // Alerts the token controller of the approve function call
+        if (isContract(controller)) {
+            require(TokenController(controller).onApprove(msg.sender, _spender, newAllowance), "Token controller does not approve.");
+        }
+
         allowance[msg.sender][_spender] = newAllowance;
         emit Approval(msg.sender, _spender, newAllowance);
         return true;

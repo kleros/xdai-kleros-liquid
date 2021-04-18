@@ -13,7 +13,7 @@ pragma solidity ^0.4.24;
 import "openzeppelin-eth/contracts/zos-lib/Initializable.sol";
 import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { Arbitrator, Arbitrable } from "@kleros/kleros-interaction/contracts/standard/arbitration/Arbitrator.sol";
-import { MiniMeTokenERC20 as Pinakion } from "@kleros/kleros-interaction/contracts/standard/arbitration/ArbitrableTokens/MiniMeTokenERC20.sol";
+import { WrappedPinakion as Pinakion } from "../tokens/WrappedPinakion.sol";
 import { IRandomAuRa } from "../interfaces/IRandomAuRa.sol";
 
 import { SortitionSumTreeFactory } from "@kleros/kleros/contracts/data-structures/SortitionSumTreeFactory.sol";
