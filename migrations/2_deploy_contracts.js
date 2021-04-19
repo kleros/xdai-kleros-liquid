@@ -16,6 +16,12 @@ const pinakionParams = {
     tokenSymbol: "SWPNK",
     xPinakion: "0x184A7Fc4fa965D18Af84C6d97dfed8C4561ff8c2",
     tokenBridge: "0x40cdff886715a4012fad0219d15c98bb149aef0e"
+  },
+  "sokol": {
+    tokenName: "Wrapped Pinakion on Sokol",
+    tokenSymbol: "SWPNK",
+    xPinakion: "0x184A7Fc4fa965D18Af84C6d97dfed8C4561ff8c2",
+    tokenBridge: "0x40cdff886715a4012fad0219d15c98bb149aef0e"
   }
 }
 
@@ -35,6 +41,20 @@ let xKlerosLiquidParams = {
     sortitionSumTreeK: 2
   },
   "sokol-fork": {
+    governor: null,
+    pinakion: null,
+    RNGenerator: "0x8f2b78169B0970F11a762e56659Db52B59CBCf1B",
+    minStakingTime: 3600,
+    maxDrawingTime: 7200,
+    hiddenVotes: false,
+    minStake: web3.utils.toWei('620','ether'),
+    alpha: 10000,
+    feeForJuror: web3.utils.toWei('40000000000000000','wei'),
+    jurorsForCourtJump: 511,
+    timesPerPeriod: [280800, 583200, 583200, 388800],
+    sortitionSumTreeK: 2
+  },
+  "sokol": {
     governor: null,
     pinakion: null,
     RNGenerator: "0x8f2b78169B0970F11a762e56659Db52B59CBCf1B",
