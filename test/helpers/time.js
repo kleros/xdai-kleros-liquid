@@ -1,23 +1,23 @@
-const {time} = require("@openzeppelin/test-helpers");
+const { time } = require('@openzeppelin/test-helpers')
 
 async function latestBlockNumber() {
-  return Number(await time.latestBlock());
+  return Number(await time.latestBlock())
 }
 
 async function latestTime() {
-  return Number(await time.latest());
+  return Number(await time.latest())
 }
 
 async function increaseTime(secondsPassed) {
-  return time.increase(secondsPassed);
+  return time.increase(secondsPassed)
 }
 
 async function advanceBlock() {
-  return time.advanceBlock();
+  return time.advanceBlock()
 }
 
 async function advanceBlockTo(block) {
-  return time.advanceBlockTo(block);
+  return time.advanceBlockTo(block)
 }
 
 module.exports = {
@@ -26,4 +26,4 @@ module.exports = {
   advanceBlock,
   advanceBlockTo,
   latestBlockNumber,
-};
+}
