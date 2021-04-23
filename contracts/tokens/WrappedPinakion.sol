@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@unknownunknown1]
+ *  @reviewers: [@unknownunknown1, @MerlinEgalite]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -95,7 +95,7 @@ contract WrappedPinakion is Initializable {
     /** @dev Changes `controller` to `_controller`.
      *  @param _controller The new controller of the contract
      */
-    function changeController(address _controller) public onlyController {
+    function changeController(address _controller) external onlyController {
         controller = _controller;
     }
 
