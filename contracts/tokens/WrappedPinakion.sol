@@ -24,8 +24,6 @@ contract WrappedPinakion is Initializable {
     * @dev Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
     *
     * Note that `value` may be zero.
-    * Also note that due to continuous minting we cannot emit transfer events from the address 0 when tokens are created.
-    * In order to keep consistency, we decided not to emit those events from the address 0 even when minting is done within a transaction.
     */
     event Transfer(address indexed from, address indexed to, uint256 value);
 
@@ -52,9 +50,6 @@ contract WrappedPinakion is Initializable {
     /// @dev Number of decimals of the token.
     uint8 public decimals;
 
-    /// @dev The contract's governor.
-    address public governor;
-
     /// @dev The token's controller.
     address public controller;
 
@@ -65,12 +60,6 @@ contract WrappedPinakion is Initializable {
     ITokenBridge public tokenBridge;
 
     /* Modifiers */
-
-    /// @dev Verifies that the sender has ability to modify governed parameters.
-    modifier onlyByGovernor() {
-        require(governor == msg.sender, "The caller is not the governor.");
-        _;
-    }
 
     /// @dev Verifies that the sender has ability to modify controlled parameters.
     modifier onlyController() {
@@ -98,18 +87,10 @@ contract WrappedPinakion is Initializable {
         xPinakion = _xPinakion;
         tokenBridge = _tokenBridge;
 
-        governor = msg.sender;
         controller = msg.sender;
     }
 
     /* External */
-
-    /** @dev Changes `governor` to `_governor`.
-     *  @param _governor The address of the new governor.
-     */
-    function changeGovernor(address _governor) external onlyByGovernor {
-        governor = _governor;
-    }
 
     /** @dev Changes `controller` to `_controller`.
      *  @param _controller The new controller of the contract
@@ -149,7 +130,7 @@ contract WrappedPinakion is Initializable {
         tokenBridge.relayTokens(xPinakion, _receiver, _amount);
     }
 
-    /** @dev Transfers `_amount` to `_recipient` and withdraws accrued tokens.
+    /** @dev Moves `_amount` tokens from the caller's account to `_recipient`.
      *  @param _recipient The entity receiving the funds.
      *  @param _amount The amount to tranfer in base units.
      */
@@ -163,7 +144,8 @@ contract WrappedPinakion is Initializable {
         return true;
     }
 
-    /** @dev Transfers `_amount` from `_sender` to `_recipient` and withdraws accrued tokens.
+    /** @dev Moves `_amount` tokens from `_sender` to `_recipient` using the
+     *  allowance mechanism. `_amount` is then deducted from the caller's allowance.
      *  @param _sender The entity to take the funds from.
      *  @param _recipient The entity receiving the funds.
      *  @param _amount The amount to tranfer in base units.
@@ -249,7 +231,7 @@ contract WrappedPinakion is Initializable {
         emit Transfer(address(0x0), msg.sender, _amount);
     }
 
-    /** @dev Burns `_amount` of tokens and withdraws accrued tokens.
+    /** @dev Destroys `_amount` tokens from the caller. Cannot burn locked tokens.
      *  @param _amount The quantity of tokens to burn in base units.
      */
     function _burn(uint256 _amount) internal {
@@ -277,11 +259,11 @@ contract WrappedPinakion is Initializable {
     /* Getters */
 
     /**
-     * @dev Calculates the current user accrued balance.
-     * @param _human The submission ID.
-     * @return The current balance.
-     */
-    function balanceOf(address _human) public view returns (uint256) {
-        return balances[_human];
+    * @dev Gets the balance of the specified address.
+    * @param _owner The address to query the balance of.
+    * @return uint256 value representing the amount owned by the passed address.
+    */
+    function balanceOf(address _owner) public view returns (uint256) {
+        return balances[_owner];
     }
 }
