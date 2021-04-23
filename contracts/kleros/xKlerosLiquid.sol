@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@shalzz]
+ *  @reviewers: [@shalzz, @unknownunknown1]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -426,6 +426,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      *  @param _disputeID The ID of the dispute.
      */
     function passPeriod(uint _disputeID) external {
+        require(_disputeID < totalDisputes, "Dispute ID does not exist.");
         Dispute storage dispute = disputes[_disputeID];
         if (dispute.period == Period.evidence) {
             require(
@@ -494,6 +495,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint _disputeID,
         uint _iterations
     ) external onlyDuringPhase(Phase.drawing) onlyDuringPeriod(_disputeID, Period.evidence) {
+        require(_disputeID < totalDisputes, "Dispute ID does not exist.");
         Dispute storage dispute = disputes[_disputeID];
         uint endIndex = dispute.drawsInRound + _iterations;
         require(endIndex >= dispute.drawsInRound);
@@ -897,7 +899,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
          *  In such case allow unstaking. Always allow unstaking. 
          */ 
         if ((totalStake - juror.stakedTokens + newTotalStake > maxTotalStakeAllowed) && (newTotalStake > juror.stakedTokens))
-            return false; // Maximum xPNK stake reached. And
+            return false; // Maximum PNK stake reached.
         // Update total stake. 
         totalStake = totalStake - juror.stakedTokens + newTotalStake;
 
