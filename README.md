@@ -19,4 +19,4 @@ MetaMask setup for Sokol:
 ## Unstake
 1. Unstake from the Sokol general court. 
 1. You can use `withdrawAndConvertToPNK()` [method](https://blockscout.com/poa/sokol/address/0xe64818D4e179926299596745BA7C20A3E4a87164/write-contract) to directly convert the Sokol Wrapped PNK into Kovan PNK. If you use this method, it is possible to set the receiver. On the Kovan chain, the tokens have to be claimed though. Go to the [token bridge](https://sokol-omnibridge.web.app/bridge), connect MetaMask with your Kovan account and claim your tokens.
-1. If you rather use the token bridge, call `withdraw()` [method](https://blockscout.com/poa/sokol/address/0xe64818D4e179926299596745BA7C20A3E4a87164/write-contract) instead. On the Kovan chain, the tokens have to be claimed though. Go to the [token bridge](https://sokol-omnibridge.web.app/bridge), connect MetaMask with your Kovan account and claim your tokens.
+1. If you rather use the token bridge, call `withdraw()` [method](https://blockscout.com/poa/sokol/address/0xe64818D4e179926299596745BA7C20A3E4a87164/write-contract) instead. Then go to the [token bridge](https://sokol-omnibridge.web.app/bridge) convert your tokens.
