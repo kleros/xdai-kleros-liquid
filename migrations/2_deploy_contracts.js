@@ -39,7 +39,6 @@ let xKlerosLiquidParams = {
     jurorsForCourtJump: 511,
     timesPerPeriod: [280800, 583200, 583200, 388800],
     sortitionSumTreeK: 2,
-    maxTotalStakeAllowed: web3.utils.toWei('30000000','ether')
   },
   "sokol-fork": {
     governor: null,
@@ -54,7 +53,6 @@ let xKlerosLiquidParams = {
     jurorsForCourtJump: 511,
     timesPerPeriod: [280800, 583200, 583200, 388800],
     sortitionSumTreeK: 2,
-    maxTotalStakeAllowed: web3.utils.toWei('30000000','ether')
   },
   "sokol": {
     governor: null,
@@ -69,7 +67,6 @@ let xKlerosLiquidParams = {
     jurorsForCourtJump: 511,
     timesPerPeriod: [280800, 583200, 583200, 388800],
     sortitionSumTreeK: 2,
-    maxTotalStakeAllowed: web3.utils.toWei('30000000','ether')
   }
 }
 
@@ -109,7 +106,6 @@ module.exports = async function(deployer, network) {
       xKlerosLiquidParams[network].jurorsForCourtJump,
       xKlerosLiquidParams[network].timesPerPeriod,
       xKlerosLiquidParams[network].sortitionSumTreeK,
-      xKlerosLiquidParams[network].maxTotalStakeAllowed,
     ], 
     { deployer, unsafeAllowLinkedLibraries: true }
   );
