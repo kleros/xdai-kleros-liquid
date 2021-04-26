@@ -101,6 +101,7 @@ contract('xKlerosLiquid', (accounts) => {
   let maxDrawingTime
   let subcourtTree
   let subcourtMap
+  let maxTotalStakeAllowed
   let klerosLiquid
   beforeEach(async () => {
     governor = accounts[0]
@@ -126,6 +127,7 @@ contract('xKlerosLiquid', (accounts) => {
     } = generateSubcourts(randomInt(4, 2), 3)
     subcourtTree = _subcourtTree
     subcourtMap = _subcourtMap
+    maxTotalStakeAllowed =  web3.utils.toWei('30000000', 'ether') // 30M PNK
 
     const sortitionSumTreeFactoryLib = await SortitionSumTreeFactory.new()
     await xKlerosLiquid.link(
@@ -147,6 +149,7 @@ contract('xKlerosLiquid', (accounts) => {
         subcourtTree.jurorsForJump,
         subcourtTree.timesPerPeriod,
         subcourtTree.sortitionSumTreeK,
+        maxTotalStakeAllowed,
       ],
       { unsafeAllowLinkedLibraries: true }
     )
@@ -534,7 +537,7 @@ contract('xKlerosLiquid', (accounts) => {
               .mod(coherentVotes)
             expect(PNKBefore.eq(PNKAfter.add(burntPNK))).to.equal(true)
             const tokensShiftEvents = await klerosLiquid.getPastEvents(
-              'TokenAndXDaiShift',
+              'TokenAndETHShift',
               {
                 filter: { _disputeID: dispute.ID },
                 fromBlock: executeBlockNumber,

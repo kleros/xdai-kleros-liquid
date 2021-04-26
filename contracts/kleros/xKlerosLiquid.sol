@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@shalzz, @unknownunknown1, @MerlinEgalite]
+ *  @reviewers: [@shalzz*, @unknownunknown1*, @MerlinEgalite*, @hbarcelos]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -13,7 +13,7 @@ pragma solidity ^0.4.24;
 import "openzeppelin-eth/contracts/zos-lib/Initializable.sol";
 import { TokenController } from "minimetoken/contracts/TokenController.sol";
 import { Arbitrator, Arbitrable } from "@kleros/kleros-interaction/contracts/standard/arbitration/Arbitrator.sol";
-import { WrappedPinakion as Pinakion } from "../tokens/WrappedPinakion.sol";
+import { WrappedPinakion } from "../tokens/WrappedPinakion.sol";
 import { IRandomAuRa } from "../interfaces/IRandomAuRa.sol";
 
 import { SortitionSumTreeFactory } from "@kleros/kleros/contracts/data-structures/SortitionSumTreeFactory.sol";
@@ -134,12 +134,13 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     event Draw(address indexed _address, uint indexed _disputeID, uint _appeal, uint _voteID);
 
     /** @dev Emitted when a juror wins or loses tokens and xDai from a dispute.
+     *  The original name from KlerosLiquid is kept in this event to match its ABI.
      *  @param _address The juror affected.
      *  @param _disputeID The ID of the dispute.
      *  @param _tokenAmount The amount of tokens won or lost.
      *  @param _xDaiAmount The amount of xDai won or lost.
      */
-    event TokenAndXDaiShift(address indexed _address, uint indexed _disputeID, int _tokenAmount, int _xDaiAmount);
+    event TokenAndETHShift(address indexed _address, uint indexed _disputeID, int _tokenAmount, int _xDaiAmount);
 
     /* Storage */
 
@@ -150,7 +151,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     uint public constant ALPHA_DIVISOR = 1e4; // The number to divide `Court.alpha` by.
     // General Contracts
     address public governor; // The governor of the contract.
-    Pinakion public pinakion; // The Pinakion token contract.
+    WrappedPinakion public pinakion; // The Pinakion token contract.
     IRandomAuRa public RNGenerator; // The random number generator contract.
     // General Dynamic
     Phase public phase; // The current phase.
@@ -214,10 +215,11 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      *  @param _jurorsForCourtJump The `jurorsForCourtJump` property value of the general court.
      *  @param _timesPerPeriod The `timesPerPeriod` property value of the general court.
      *  @param _sortitionSumTreeK The number of children per node of the general court's sortition sum tree.
+     *  @param _maxTotalStakeAllowed The maximum amount of wrapped PNK that is allowed to be staked in this contract.
      */
     function initialize(
         address _governor,
-        Pinakion _pinakion,
+        WrappedPinakion _pinakion,
         IRandomAuRa _RNGenerator,
         uint _minStakingTime,
         uint _maxDrawingTime,
@@ -227,7 +229,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint _feeForJuror,
         uint _jurorsForCourtJump,
         uint[4] _timesPerPeriod,
-        uint _sortitionSumTreeK
+        uint _sortitionSumTreeK,
+        uint _maxTotalStakeAllowed
     ) public initializer {
         // Initialize contract.
         governor = _governor;
@@ -238,7 +241,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         lastPhaseChange = now;
         lockInsolventTransfers = true;
         nextDelayedSetStake = 1;
-        maxTotalStakeAllowed = 30 * 1e24; // 30 Million PNK.
+        maxTotalStakeAllowed = _maxTotalStakeAllowed;
 
         // Create the general court.
         courts.push(Court({
@@ -275,7 +278,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     /** @dev Changes the `pinakion` storage variable.
      *  @param _pinakion The new value for the `pinakion` storage variable.
      */
-    function changePinakion(Pinakion _pinakion) external onlyByGovernor {
+    function changePinakion(WrappedPinakion _pinakion) external onlyByGovernor {
         pinakion = _pinakion;
     }
 
@@ -468,6 +471,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     }
 
     /** @dev Executes the next delayed set stakes.
+     *  `O(n)` where `n` is the number of iterations to run.
      *  @param _iterations The number of delayed set stakes to execute.
      */
     function executeDelayedSetStakes(uint _iterations) external onlyDuringPhase(Phase.staking) {
@@ -580,12 +584,13 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     }
 
     /** @dev Computes the token and xDai rewards for a specified appeal in a specified dispute.
+     *  The original name from KlerosLiquid is kept in this function to match its ABI.
      *  @param _disputeID The ID of the dispute.
      *  @param _appeal The appeal.
      *  @return tokenReward The token reward.
      *  @return xDaiReward The xDai reward.
      */
-    function computeTokenAndXDaiRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint xDaiReward) {
+    function computeTokenAndETHRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint xDaiReward) {
         Dispute storage dispute = disputes[_disputeID];
 
         // Distribute penalties and arbitration fees.
@@ -637,7 +642,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             if (end > dispute.votes[_appeal].length) end = dispute.votes[_appeal].length;
         } else {
             // We loop over the votes twice, first to collect penalties, and second to distribute them as rewards along with arbitration fees.
-            (tokenReward, xDaiReward) = dispute.repartitionsInEachRound[_appeal] >= dispute.votes[_appeal].length ? computeTokenAndXDaiRewards(_disputeID, _appeal) : (0, 0); // Compute rewards if rewarding.
+            (tokenReward, xDaiReward) = dispute.repartitionsInEachRound[_appeal] >= dispute.votes[_appeal].length ? computeTokenAndETHRewards(_disputeID, _appeal) : (0, 0); // Compute rewards if rewarding.
             if (end > dispute.votes[_appeal].length * 2) end = dispute.votes[_appeal].length * 2;
         }
         for (uint i = dispute.repartitionsInEachRound[_appeal]; i < end; i++) {
@@ -652,7 +657,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
                     pinakion.transfer(vote.account, tokenReward);
                     // Intentional use to avoid blocking.
                     vote.account.send(xDaiReward); // solium-disable-line security/no-send
-                    emit TokenAndXDaiShift(vote.account, _disputeID, int(tokenReward), int(xDaiReward));
+                    emit TokenAndETHShift(vote.account, _disputeID, int(tokenReward), int(xDaiReward));
                     jurors[vote.account].lockedTokens -= dispute.tokensAtStakePerJuror[_appeal];
                 }
             } else { // Juror was inactive, or voted incoherently and it was not a tie.
@@ -661,7 +666,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
                     // Penalize.
                     uint penalty = dispute.tokensAtStakePerJuror[_appeal] > pinakion.balanceOf(vote.account) ? pinakion.balanceOf(vote.account) : dispute.tokensAtStakePerJuror[_appeal];
                     pinakion.transferFrom(vote.account, this, penalty);
-                    emit TokenAndXDaiShift(vote.account, _disputeID, -int(penalty), 0);
+                    emit TokenAndETHShift(vote.account, _disputeID, -int(penalty), 0);
                     penaltiesInRoundCache += penalty;
                     jurors[vote.account].lockedTokens -= dispute.tokensAtStakePerJuror[_appeal];
 
@@ -681,7 +686,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
                 } else if (i + 1 < end) {
                     // Compute rewards because we are going into rewarding.
                     dispute.penaltiesInEachRound[_appeal] = penaltiesInRoundCache;
-                    (tokenReward, xDaiReward) = computeTokenAndXDaiRewards(_disputeID, _appeal);
+                    (tokenReward, xDaiReward) = computeTokenAndETHRewards(_disputeID, _appeal);
                 }
             }
         }
@@ -767,7 +772,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         emit NewPeriod(_disputeID, Period.evidence);
     }
 
-    /** @dev Called when `_owner` sends xDai to the MiniMe Token contract.
+    /** @dev DEPRECATED. Called when `_owner` sends xDai to the Wrapped Token contract.
      *  @param _owner The address that sent the xDai to create tokens.
      *  @return allowed Whether the operation should be allowed or not.
      */
@@ -896,7 +901,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
 
         /** If maxTotalStakeAllowed was reduced through governance, 
          *  totalStake could be greater than maxTotalStakeAllowed. 
-         *  In such case allow unstaking. Always allow unstaking. 
+         *  If this happens, removing stake is still allowed even if
+         *  totalStake is greater than maxTotalStakeAllowed afterwards.
          */ 
         if ((totalStake - juror.stakedTokens + newTotalStake > maxTotalStakeAllowed) && (newTotalStake > juror.stakedTokens))
             return false; // Maximum PNK stake reached.
