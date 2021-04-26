@@ -101,7 +101,6 @@ contract('xKlerosLiquid', (accounts) => {
   let maxDrawingTime
   let subcourtTree
   let subcourtMap
-  let maxTotalStakeAllowed
   let klerosLiquid
   beforeEach(async () => {
     governor = accounts[0]
@@ -127,7 +126,6 @@ contract('xKlerosLiquid', (accounts) => {
     } = generateSubcourts(randomInt(4, 2), 3)
     subcourtTree = _subcourtTree
     subcourtMap = _subcourtMap
-    maxTotalStakeAllowed =  web3.utils.toWei('30000000', 'ether') // 30M PNK
 
     const sortitionSumTreeFactoryLib = await SortitionSumTreeFactory.new()
     await xKlerosLiquid.link(
@@ -149,7 +147,6 @@ contract('xKlerosLiquid', (accounts) => {
         subcourtTree.jurorsForJump,
         subcourtTree.timesPerPeriod,
         subcourtTree.sortitionSumTreeK,
-        maxTotalStakeAllowed,
       ],
       { unsafeAllowLinkedLibraries: true }
     )
@@ -787,31 +784,6 @@ contract('xKlerosLiquid', (accounts) => {
     await klerosLiquid.setStake(subcourtTree.children[0].children[0].ID, 0)
   })
 
-  it('Should reject staking when the max limit is reached.', async () => {
-    await asyncForEach(
-      (subcourt) =>
-        klerosLiquid.createSubcourt(
-          subcourt.parent,
-          subcourt.hiddenVotes,
-          subcourt.minStake,
-          subcourt.alpha,
-          subcourt.jurorFee,
-          subcourt.jurorsForJump,
-          subcourt.timesPerPeriod,
-          subcourt.sortitionSumTreeK
-        ),
-      subcourtMap
-    )
-    const stake1 = web3.utils.toWei('20000000', 'ether') // 20M PNK
-    const stake2 = web3.utils.toWei('20000000', 'ether') // 20M PNK
-    const totalStake = web3.utils.toWei('40000000', 'ether') // 40M PNK
-    await bridgedPinakion.approve(pinakion.address, totalStake, {
-      from: governor,
-    })
-    await pinakion.deposit(totalStake, { from: governor })
-    await klerosLiquid.setStake(subcourtTree.ID, stake1)
-    await expectThrow(klerosLiquid.setStake(subcourtTree.ID, totalStake))
-  })
 
   it('Should prevent overflows when executing delayed set stakes.', async () => {
     const extraData = `0x${(0).toString(16).padStart(64, '0')}${(1)
