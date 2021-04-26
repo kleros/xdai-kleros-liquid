@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@shalzz, @unknownunknown1*, @MerlinEgalite*, @hbarcelos]
+ *  @reviewers: [@shalzz*, @unknownunknown1*, @MerlinEgalite*, @hbarcelos*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -164,7 +164,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     uint public maxDrawingTime; // The maximum drawing time.
     // True if insolvent (`balance < stakedTokens || balance < lockedTokens`) token transfers should be blocked. Used to avoid blocking penalties.
     bool public lockInsolventTransfers;
-    uint public maxTotalStakeAllowed; // In order to prevent too many jurors from migration to xDai from Mainnet, a maximum xPNK stake is set.
     uint public totalStake; 
     // General Storage
     Court[] public courts; // The subcourts.
@@ -215,7 +214,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      *  @param _jurorsForCourtJump The `jurorsForCourtJump` property value of the general court.
      *  @param _timesPerPeriod The `timesPerPeriod` property value of the general court.
      *  @param _sortitionSumTreeK The number of children per node of the general court's sortition sum tree.
-     *  @param _maxTotalStakeAllowed The maximum amount of wrapped PNK that is allowed to be staked in this contract.
      */
     function initialize(
         address _governor,
@@ -229,8 +227,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint _feeForJuror,
         uint _jurorsForCourtJump,
         uint[4] _timesPerPeriod,
-        uint _sortitionSumTreeK,
-        uint _maxTotalStakeAllowed
+        uint _sortitionSumTreeK
     ) public initializer {
         // Initialize contract.
         governor = _governor;
@@ -241,7 +238,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         lastPhaseChange = now;
         lockInsolventTransfers = true;
         nextDelayedSetStake = 1;
-        maxTotalStakeAllowed = _maxTotalStakeAllowed;
 
         // Create the general court.
         courts.push(Court({
@@ -304,13 +300,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      */
     function changeMaxDrawingTime(uint _maxDrawingTime) external onlyByGovernor {
         maxDrawingTime = _maxDrawingTime;
-    }
-
-    /** @dev Changes the `maxTotalStakeAllowed` storage variable.
-     *  @param _maxTotalStakeAllowed The new value for the `maxTotalStakeAllowed` storage variable.
-     */
-    function changeMaxTotalStakeAllowed(uint _maxTotalStakeAllowed) external onlyByGovernor {
-        maxTotalStakeAllowed = _maxTotalStakeAllowed;
     }
 
     /** @dev Creates a subcourt under a specified parent court.
@@ -898,16 +887,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint newTotalStake = juror.stakedTokens - currentStake + _stake; // Can't overflow because _stake is a uint128.
         if (!(_stake == 0 || pinakion.balanceOf(_account) >= newTotalStake))
             return false; // The juror's total amount of staked tokens cannot be higher than the juror's balance.
-
-        /** If maxTotalStakeAllowed was reduced through governance, 
-         *  totalStake could be greater than maxTotalStakeAllowed. 
-         *  If this happens, removing stake is still allowed even if
-         *  totalStake is greater than maxTotalStakeAllowed afterwards.
-         */ 
-        if ((totalStake - juror.stakedTokens + newTotalStake > maxTotalStakeAllowed) && (newTotalStake > juror.stakedTokens))
-            return false; // Maximum PNK stake reached.
-        // Update total stake. 
-        totalStake = totalStake - juror.stakedTokens + newTotalStake;
 
         // Update juror's records.
         juror.stakedTokens = newTotalStake;
