@@ -1,18 +1,18 @@
 node_modules
 
 # Production
-/build/
+build/
 
 # Logs
-/yarn-debug.log*
-/yarn-error.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Editors
-/.vscode/
-/.idea/*
+.vscode/
+.idea/*
 
 # Misc
-/.DS_Store
+.DS_Store
 
 # dotenv environment variables file
 .env
