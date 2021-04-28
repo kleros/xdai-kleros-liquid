@@ -138,9 +138,9 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      *  @param _address The juror affected.
      *  @param _disputeID The ID of the dispute.
      *  @param _tokenAmount The amount of tokens won or lost.
-     *  @param _xDaiAmount The amount of xDai won or lost.
+     *  @param _ETHAmount The amount of xDai won or lost.
      */
-    event TokenAndETHShift(address indexed _address, uint indexed _disputeID, int _tokenAmount, int _xDaiAmount);
+    event TokenAndETHShift(address indexed _address, uint indexed _disputeID, int _tokenAmount, int _ETHAmount);
 
     /* Storage */
 
@@ -164,7 +164,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     uint public maxDrawingTime; // The maximum drawing time.
     // True if insolvent (`balance < stakedTokens || balance < lockedTokens`) token transfers should be blocked. Used to avoid blocking penalties.
     bool public lockInsolventTransfers;
-    uint public totalStake; 
     // General Storage
     Court[] public courts; // The subcourts.
     using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees; // Use library functions for sortition sum trees.
@@ -577,9 +576,9 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      *  @param _disputeID The ID of the dispute.
      *  @param _appeal The appeal.
      *  @return tokenReward The token reward.
-     *  @return xDaiReward The xDai reward.
+     *  @return ETHReward The xDai reward.
      */
-    function computeTokenAndETHRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint xDaiReward) {
+    function computeTokenAndETHRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint ETHReward) {
         Dispute storage dispute = disputes[_disputeID];
 
         // Distribute penalties and arbitration fees.
@@ -588,17 +587,17 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             uint activeCount = dispute.votesInEachRound[_appeal];
             if (activeCount > 0) {
                 tokenReward = dispute.penaltiesInEachRound[_appeal] / activeCount;
-                xDaiReward = dispute.totalFeesForJurors[_appeal] / activeCount;
+                ETHReward = dispute.totalFeesForJurors[_appeal] / activeCount;
             } else {
                 tokenReward = 0;
-                xDaiReward = 0;
+                ETHReward = 0;
             }
         } else {
             // Distribute penalties and fees evenly between coherent jurors.
             uint winningChoice = dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice;
             uint coherentCount = dispute.voteCounters[_appeal].counts[winningChoice];
             tokenReward = dispute.penaltiesInEachRound[_appeal] / coherentCount;
-            xDaiReward = dispute.totalFeesForJurors[_appeal] / coherentCount;
+            ETHReward = dispute.totalFeesForJurors[_appeal] / coherentCount;
         }
     }
 

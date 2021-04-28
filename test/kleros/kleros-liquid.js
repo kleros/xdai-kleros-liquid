@@ -544,7 +544,7 @@ contract('xKlerosLiquid', (accounts) => {
             expect(
               tokensShiftEvents
                 .reduce(
-                  (acc, e) => acc.add(e.args._xDaiAmount),
+                  (acc, e) => acc.add(e.args._ETHAmount),
                   web3.utils.toBN(0)
                 )
                 .toNumber()
@@ -1044,6 +1044,7 @@ contract('xKlerosLiquid', (accounts) => {
     const ETHAfter = web3.utils.toBN(await web3.eth.getBalance(partyB))
     expect(ETHAfter.gt(ETHBefore)).to.equal(true)
   })
+
   it('Should handle invalid extra data.', async () => {
     const disputeID = 0
     const extraData = `0x${(1000).toString(16).padStart(64, '0')}${(0)
@@ -1072,4 +1073,5 @@ contract('xKlerosLiquid', (accounts) => {
       web3.utils.toBN(3)
     )
   })
+
 })
