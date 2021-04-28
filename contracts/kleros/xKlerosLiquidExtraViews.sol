@@ -1,6 +1,6 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
- *  @reviewers: []
+ *  @reviewers: [@hbarcelos]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -10,19 +10,19 @@ pragma solidity ^0.4.24;
 import { xKlerosLiquid } from "./xKlerosLiquid.sol";
 
 /**
- *  @title KlerosLiquidExtraViews
- *  @author Enrique Piqueras - <epiquerass@gmail.com>
- *  @dev Extra view functions for KlerosLiquid. Not part of bug bounty.
+ *  @title xKlerosLiquidExtraViews
+ *  @dev This contract is an adaption of Mainnet's xKlerosLiquidExtraViews (https://github.com/kleros/kleros/blob/69cfbfb2128c29f1625b3a99a3183540772fda08/contracts/kleros/KlerosLiquidExtraViews.sol)
+ *  for xDai chain.
  */
-contract KlerosLiquidExtraViews {
+contract xKlerosLiquidExtraViews {
     /* Storage */
 
     xKlerosLiquid public klerosLiquid;
 
     /* Constructor */
 
-    /** @dev Constructs the KlerosLiquidExtraViews contract.
-     *  @param _klerosLiquid The address of KlerosLiquid.
+    /** @dev Constructs the xKlerosLiquidExtraViews contract.
+     *  @param _klerosLiquid The address of KlerosLiquid on xDai.
      */
     constructor(xKlerosLiquid _klerosLiquid) public {
         klerosLiquid = _klerosLiquid;

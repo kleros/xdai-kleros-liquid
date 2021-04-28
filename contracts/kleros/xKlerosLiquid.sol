@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@shalzz*, @unknownunknown1*, @MerlinEgalite*, @hbarcelos*]
+ *  @reviewers: [@shalzz*, @unknownunknown1*, @MerlinEgalite*, @hbarcelos]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -21,7 +21,8 @@ import { SortitionSumTreeFactory } from "@kleros/kleros/contracts/data-structure
 /**
  *  @title xKlerosLiquid
  *  @dev This contract is an adaption of Mainnet's KlerosLiquid (https://github.com/kleros/kleros/blob/69cfbfb2128c29f1625b3a99a3183540772fda08/contracts/kleros/KlerosLiquid.sol)
- *  for xDai chain.
+ *  for xDai chain. Notice that variables referring to ETH values in this contract, will hold the native token values of the chain on which xKlerosLiquid is deployed.
+ *  When this contract gets deployed on xDai chain, ETH variables will hold xDai values.
  */
 contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     /* Enums */
@@ -133,21 +134,20 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      */
     event Draw(address indexed _address, uint indexed _disputeID, uint _appeal, uint _voteID);
 
-    /** @dev Emitted when a juror wins or loses tokens and xDai from a dispute.
-     *  The original name from KlerosLiquid is kept in this event to match its ABI.
+    /** @dev Emitted when a juror wins or loses tokens and ETH from a dispute.
      *  @param _address The juror affected.
      *  @param _disputeID The ID of the dispute.
      *  @param _tokenAmount The amount of tokens won or lost.
-     *  @param _xDaiAmount The amount of xDai won or lost.
+     *  @param _ETHAmount The amount of ETH won or lost.
      */
-    event TokenAndETHShift(address indexed _address, uint indexed _disputeID, int _tokenAmount, int _xDaiAmount);
+    event TokenAndETHShift(address indexed _address, uint indexed _disputeID, int _tokenAmount, int _ETHAmount);
 
     /* Storage */
 
     // General Constants
     uint public constant MAX_STAKE_PATHS = 4; // The maximum number of stake paths a juror can have.
     uint public constant MIN_JURORS = 3; // The global default minimum number of jurors in a dispute.
-    uint public constant NON_PAYABLE_AMOUNT = (2 ** 256 - 2) / 2; // An amount higher than the supply of xDai.
+    uint public constant NON_PAYABLE_AMOUNT = (2 ** 256 - 2) / 2; // An amount higher than the supply of ETH.
     uint public constant ALPHA_DIVISOR = 1e4; // The number to divide `Court.alpha` by.
     // General Contracts
     address public governor; // The governor of the contract.
@@ -164,7 +164,6 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     uint public maxDrawingTime; // The maximum drawing time.
     // True if insolvent (`balance < stakedTokens || balance < lockedTokens`) token transfers should be blocked. Used to avoid blocking penalties.
     bool public lockInsolventTransfers;
-    uint public totalStake; 
     // General Storage
     Court[] public courts; // The subcourts.
     using SortitionSumTreeFactory for SortitionSumTreeFactory.SortitionSumTrees; // Use library functions for sortition sum trees.
@@ -572,14 +571,13 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         }
     }
 
-    /** @dev Computes the token and xDai rewards for a specified appeal in a specified dispute.
-     *  The original name from KlerosLiquid is kept in this function to match its ABI.
+    /** @dev Computes the token and ETH rewards for a specified appeal in a specified dispute.
      *  @param _disputeID The ID of the dispute.
      *  @param _appeal The appeal.
      *  @return tokenReward The token reward.
-     *  @return xDaiReward The xDai reward.
+     *  @return ETHReward The ETH reward.
      */
-    function computeTokenAndETHRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint xDaiReward) {
+    function computeTokenAndETHRewards(uint _disputeID, uint _appeal) private view returns(uint tokenReward, uint ETHReward) {
         Dispute storage dispute = disputes[_disputeID];
 
         // Distribute penalties and arbitration fees.
@@ -588,21 +586,21 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             uint activeCount = dispute.votesInEachRound[_appeal];
             if (activeCount > 0) {
                 tokenReward = dispute.penaltiesInEachRound[_appeal] / activeCount;
-                xDaiReward = dispute.totalFeesForJurors[_appeal] / activeCount;
+                ETHReward = dispute.totalFeesForJurors[_appeal] / activeCount;
             } else {
                 tokenReward = 0;
-                xDaiReward = 0;
+                ETHReward = 0;
             }
         } else {
             // Distribute penalties and fees evenly between coherent jurors.
             uint winningChoice = dispute.voteCounters[dispute.voteCounters.length - 1].winningChoice;
             uint coherentCount = dispute.voteCounters[_appeal].counts[winningChoice];
             tokenReward = dispute.penaltiesInEachRound[_appeal] / coherentCount;
-            xDaiReward = dispute.totalFeesForJurors[_appeal] / coherentCount;
+            ETHReward = dispute.totalFeesForJurors[_appeal] / coherentCount;
         }
     }
 
-    /** @dev Repartitions tokens and xDai for a specified appeal in a specified dispute. Can be called in parts.
+    /** @dev Repartitions tokens and ETH for a specified appeal in a specified dispute. Can be called in parts.
      *  `O(i + u * n * (n + p * log_k(j)))` where
      *  `i` is the number of iterations to run,
      *  `u` is the number of jurors that need to be unstaked,
@@ -620,7 +618,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint end = dispute.repartitionsInEachRound[_appeal] + _iterations;
         require(end >= dispute.repartitionsInEachRound[_appeal]);
         uint penaltiesInRoundCache = dispute.penaltiesInEachRound[_appeal]; // For saving gas.
-        (uint tokenReward, uint xDaiReward) = (0, 0);
+        (uint tokenReward, uint ETHReward) = (0, 0);
 
         // Avoid going out of range.
         if (
@@ -631,7 +629,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             if (end > dispute.votes[_appeal].length) end = dispute.votes[_appeal].length;
         } else {
             // We loop over the votes twice, first to collect penalties, and second to distribute them as rewards along with arbitration fees.
-            (tokenReward, xDaiReward) = dispute.repartitionsInEachRound[_appeal] >= dispute.votes[_appeal].length ? computeTokenAndETHRewards(_disputeID, _appeal) : (0, 0); // Compute rewards if rewarding.
+            (tokenReward, ETHReward) = dispute.repartitionsInEachRound[_appeal] >= dispute.votes[_appeal].length ? computeTokenAndETHRewards(_disputeID, _appeal) : (0, 0); // Compute rewards if rewarding.
             if (end > dispute.votes[_appeal].length * 2) end = dispute.votes[_appeal].length * 2;
         }
         for (uint i = dispute.repartitionsInEachRound[_appeal]; i < end; i++) {
@@ -645,8 +643,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
                     // Reward.
                     pinakion.transfer(vote.account, tokenReward);
                     // Intentional use to avoid blocking.
-                    vote.account.send(xDaiReward); // solium-disable-line security/no-send
-                    emit TokenAndETHShift(vote.account, _disputeID, int(tokenReward), int(xDaiReward));
+                    vote.account.send(ETHReward); // solium-disable-line security/no-send
+                    emit TokenAndETHShift(vote.account, _disputeID, int(tokenReward), int(ETHReward));
                     jurors[vote.account].lockedTokens -= dispute.tokensAtStakePerJuror[_appeal];
                 }
             } else { // Juror was inactive, or voted incoherently and it was not a tie.
@@ -675,7 +673,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
                 } else if (i + 1 < end) {
                     // Compute rewards because we are going into rewarding.
                     dispute.penaltiesInEachRound[_appeal] = penaltiesInRoundCache;
-                    (tokenReward, xDaiReward) = computeTokenAndETHRewards(_disputeID, _appeal);
+                    (tokenReward, ETHReward) = computeTokenAndETHRewards(_disputeID, _appeal);
                 }
             }
         }
@@ -761,8 +759,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         emit NewPeriod(_disputeID, Period.evidence);
     }
 
-    /** @dev DEPRECATED. Called when `_owner` sends xDai to the Wrapped Token contract.
-     *  @param _owner The address that sent the xDai to create tokens.
+    /** @dev DEPRECATED. Called when `_owner` sends ETH to the Wrapped Token contract.
+     *  @param _owner The address that sent the ETH to create tokens.
      *  @return allowed Whether the operation should be allowed or not.
      */
     function proxyPayment(address _owner) public payable returns(bool allowed) { allowed = false; }
