@@ -2,6 +2,8 @@ const { deployProxy } = require('@openzeppelin/truffle-upgrades');
 
 var WrappedPinakion = artifacts.require("./WrappedPinakion.sol");
 var xKlerosLiquid = artifacts.require("./xKlerosLiquid.sol");
+var PolicyRegistry = artifacts.require("./PolicyRegistry.sol");
+var xKlerosLiquidExtraViews = artifacts.require("./xKlerosLiquidExtraViews.sol");
 var SortitionSumTreeFactory = artifacts.require("./SortitionSumTreeFactory.sol");
 
 const pinakionParams = {
@@ -109,8 +111,25 @@ module.exports = async function(deployer, network) {
     ], 
     { deployer, unsafeAllowLinkedLibraries: true }
   );
-  console.log('Deployed xKlerosLiquid: ', xKlerosLiquidInstance.address);
 
   await PNKInstance.changeController(xKlerosLiquidInstance.address)
+
+  const ExtraViewsInstance = await deployer.deploy(
+    xKlerosLiquidExtraViews,
+    xKlerosLiquidInstance.address
+  );
+
+  const PolicyRegistryInstance = await deployer.deploy(
+    PolicyRegistry,
+    deployer.networks[network].from // deployer address
+  );
+  await PolicyRegistryInstance.setPolicy(
+    0,
+    "/ipfs/Qmd1TMEbtic3TSonu5dfqa5k3aSrjxRGY8oJH3ruGgazRB" 
+  )
   
+  console.log('Deployed Wrapped PNK: ', PNKInstance.address);
+  console.log('Deployed xKlerosLiquid: ', xKlerosLiquidInstance.address);
+  console.log('Deployed Extra Views: ', ExtraViewsInstance.address);
+  console.log('Deployed Policy Registry: ', PolicyRegistryInstance.address);
 };
