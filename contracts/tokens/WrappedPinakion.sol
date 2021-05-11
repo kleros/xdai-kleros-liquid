@@ -115,7 +115,8 @@ contract WrappedPinakion is Initializable {
      *  the xPinakion tokens.
      *  @param _token The token address the _amount belongs to.
      *  @param _amount The amount of wrapped pinakions to mint.
-     *  @param _data Calldata containing the address of the recipient.
+     *  @param _data Calldata containing the address of the recipient. 
+     *  Notice that the address has to be padded to 32 bytes.
      */
     function onTokenBridged(address _token, uint _amount, bytes _data) external {
         require(msg.sender == address(tokenBridge), "Sender not authorized.");
@@ -242,7 +243,7 @@ contract WrappedPinakion is Initializable {
     * @dev Internal function that mints an amount of the token and assigns it to
     * an account. This encapsulates the modification of balances such that the
     * proper events are emitted.
-    * @param _recipient The amount that will be created.
+    * @param _recipient The address which will receive the minted tokens.
     * @param _amount The amount that will be created.
     */
     function _mint(address _recipient, uint256 _amount) internal {
