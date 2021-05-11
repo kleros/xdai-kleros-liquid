@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@unknownunknown1, @MerlinEgalite, @hbarcelos, @shalzz]
+ *  @reviewers: [@unknownunknown1*, @MerlinEgalite*, @hbarcelos*, @shalzz*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -104,10 +104,30 @@ contract WrappedPinakion is Initializable {
      *  @param _amount The amount of wrapped pinakions to mint.
      */
     function deposit(uint _amount) external {
-        _mint(_amount);
+        _mint(msg.sender, _amount);
         require(xPinakion.transferFrom(msg.sender, address(this), _amount), "Sender does not have enough approved funds.");
     }
 
+
+    /** @dev IERC20 Receiver functionality. 
+     *  Converts bridged PNK (xPinakion) into wrapped PNK which can be staked in KlerosLiquid.
+     *  If the tokenBridge is calling this function, then this contract has already received
+     *  the xPinakion tokens.
+     *  @param _token The token address the _amount belongs to.
+     *  @param _amount The amount of wrapped pinakions to mint.
+     *  @param _data Calldata containing the address of the recipient. 
+     *  Notice that the address has to be padded to 32 bytes.
+     */
+    function onTokenBridged(address _token, uint _amount, bytes _data) external {
+        require(msg.sender == address(tokenBridge), "Sender not authorized.");
+        require(_token == address(xPinakion), "Token bridged is not xPinakion.");
+
+        address recipient;
+        assembly {
+            recipient := calldataload(0x84)
+        }
+        _mint(recipient, _amount);
+    }
 
     /** @dev Withdraws bridged pinakions.
      *  @param _amount The amount of bridged pinakions to withdraw.
@@ -223,12 +243,13 @@ contract WrappedPinakion is Initializable {
     * @dev Internal function that mints an amount of the token and assigns it to
     * an account. This encapsulates the modification of balances such that the
     * proper events are emitted.
+    * @param _recipient The address which will receive the minted tokens.
     * @param _amount The amount that will be created.
     */
-    function _mint(uint256 _amount) internal {
+    function _mint(address _recipient, uint256 _amount) internal {
         totalSupply = totalSupply.add(_amount);
-        balances[msg.sender] = balances[msg.sender].add(_amount);
-        emit Transfer(address(0x0), msg.sender, _amount);
+        balances[_recipient] = balances[_recipient].add(_amount);
+        emit Transfer(address(0x0), _recipient, _amount);
     }
 
     /** @dev Destroys `_amount` tokens from the caller. Cannot burn locked tokens.
