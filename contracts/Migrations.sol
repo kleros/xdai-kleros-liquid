@@ -7,7 +7,7 @@ import "@kleros/kleros-interaction/contracts/standard/arbitration/TwoPartyArbitr
 
 contract Migrations {
     address public owner;
-    uint public last_completed_migration;
+    uint256 public last_completed_migration;
 
     modifier isOwner() {
         if (msg.sender == owner) _;
@@ -17,7 +17,7 @@ contract Migrations {
         owner = msg.sender;
     }
 
-    function setCompleted(uint completed) public isOwner {
+    function setCompleted(uint256 completed) public isOwner {
         last_completed_migration = completed;
     }
 
