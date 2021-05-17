@@ -51,7 +51,7 @@ contract WrappedPinakion is Initializable {
     /// @notice The token's controller.
     address public controller;
 
-    /// @notice Pinakion on xDai to be wrapped. This token is upgradeable.
+    /// @notice Bridged PNK on xDai to be wrapped. This token is upgradeable.
     IERC677 public xPinakion;
 
     /// @notice xDai Token Bridge. The Token Bridge is upgradeable.
@@ -69,9 +69,9 @@ contract WrappedPinakion is Initializable {
 
     /**
      * @dev Constructor.
-     * @param _name for the wrapped Pinakion on the home chain.
-     * @param _symbol for wrapped Pinakion ticker on the home chain.
-     * @param _xPinakion the home pinakion contract which is already bridged to the foreign pinakion contract.
+     * @param _name for the wrapped PNK on the home chain.
+     * @param _symbol for wrapped PNK ticker on the home chain.
+     * @param _xPinakion the home PNK contract which is already bridged to the foreign PNK contract.
      * @param _tokenBridge the TokenBridge contract.
      */
     function initialize(
@@ -100,7 +100,7 @@ contract WrappedPinakion is Initializable {
     }
 
     /**
-     * @notice Converts bridged pinakions into pinakions which can be staked in KlerosLiquid.
+     * @notice Converts bridged PNK (xPinakion) into wrapped PNK which can be staked in KlerosLiquid.
      * @param _amount The amount of wrapped pinakions to mint.
      */
     function deposit(uint256 _amount) external {
@@ -117,8 +117,9 @@ contract WrappedPinakion is Initializable {
      * If the tokenBridge is calling this function, then this contract has already received
      * the xPinakion tokens.
      * @param _token The token address the _amount belongs to.
-     * @param _amount The amount of wrapped pinakions to mint.
-     * @param _data Calldata containing the address of the recipient. Notice that the address has to be padded to 32 bytes.
+     * @param _amount The amount of wrapped PNK to mint.
+     * @param _data Calldata containing the address of the recipient. 
+     * Notice that the address has to be padded to the right 32 bytes.
      */
     function onTokenBridged(
         address _token,
@@ -136,8 +137,8 @@ contract WrappedPinakion is Initializable {
     }
 
     /**
-     * @notice Withdraws bridged pinakions.
-     * @param _amount The amount of bridged pinakions to withdraw.
+     * @notice Converts wrapped PNK back into bridged PNK (xPinakion).
+     * @param _amount The amount of bridged PNK to withdraw.
      */
     function withdraw(uint256 _amount) external {
         _burn(_amount);
@@ -145,11 +146,11 @@ contract WrappedPinakion is Initializable {
     }
 
     /**
-     * @notice Withdraws the WrappedPinakion and transfers it through the Token Bridge.
+     * @notice Converts wrapped PNK back into PNK using the Token Bridge.
      * @dev This function is not strictly needed, but it provides a good UX to users who want to get their Mainnet's PNK back.
      * What normally takes 3 transactions, here is done in one go.
-     * Notice that the PNK have to be claimed on mainnet's TokenBride by the receiver.
-     * @param _amount The amount of bridged pinakions to withdraw.
+     * Notice that the PNK have to be claimed on Mainnet's TokenBridge by the receiver.
+     * @param _amount The amount of PNK to withdraw.
      * @param _receiver The address which will receive the PNK back in the foreign chain.
      */
     function withdrawAndConvertToPNK(uint256 _amount, address _receiver) external {
