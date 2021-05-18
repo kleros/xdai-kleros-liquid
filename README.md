@@ -10,6 +10,8 @@ MetaMask setup for Sokol:
 - Symbol: SPOA
 - Block Explorer URL: https://blockscout.com/poa/sokol
 
+In order to execute transactions on Sokol, you will need the native currency SPOA. Request some in the Sokol [faucet](https://faucet-sokol.herokuapp.com/).
+
 ## Deployed Addresses
 
 Sokol:
