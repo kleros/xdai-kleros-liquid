@@ -32,6 +32,8 @@ xDai:
 1. [relayTokensAndCall](https://kovan.etherscan.io/address/0xa960d095470f7509955d5402e36d9db984b5c8e2#writeProxyContract) in order to bridge the tokens to Sokol. Use token: `0x1ee318dbc19267dbce08f54a66ab198f73ede356`, _receiver: `0x9Bc02E9f5291adbb1f0Cf5C15ab1B400dccd3665`, _value: amount of PNK to bridge, _data: the address that will receive the tokens on Sokol padded to 32 bytes.
 1. Now, you are ready to [stake](https://blockscout.com/poa/sokol/address/0xb701ff19fBD9702DD7Ca099Ee7D0D42a2612baB5/write-proxy) in the Sokol general court by calling `setStake`.
 
+In order to learn more about the process that gets triggered by `relayTokensAndCall`, take a look at the source code, especially the [BasicOmnibridge](https://github.com/omni/omnibridge/blob/b658c7c217e25c13e61ab9fb1a97010a5656b11e/contracts/upgradeable_contracts/BasicOmnibridge.sol#L471) and the [TokensRelayer](https://github.com/omni/omnibridge/blob/b658c7c217e25c13e61ab9fb1a97010a5656b11e/contracts/upgradeable_contracts/components/common/TokensRelayer.sol#L73-L87).
+
 ## Stake (using Omnibridge)
 1. Get Kovan PNK from [faucet](https://kovan.etherscan.io/address/0x4e95b2e0ecb3bd394e1dddd775504820a746d3bd#writeContract). The Kovan PNK contract address is `0x1ee318dbc19267dbce08f54a66ab198f73ede356`.
 1. Go to the [token bridge](https://sokol-omnibridge.web.app/bridge) and convert Kovan PNK into Sokol PNK. The Sokol PNK contract address is `0x184A7Fc4fa965D18Af84C6d97dfed8C4561ff8c2`.

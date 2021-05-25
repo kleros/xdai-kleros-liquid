@@ -115,7 +115,8 @@ contract WrappedPinakion is Initializable {
      * @notice IERC20 Receiver functionality.
      * @dev Converts bridged PNK (xPinakion) into wrapped PNK which can be staked in KlerosLiquid.
      * If the tokenBridge is calling this function, then this contract has already received
-     * the xPinakion tokens.
+     * the xPinakion tokens. Notice that the Home bridge calls onTokenBridge as a result of
+     * someone invoking `relayTokensAndCall()` on the Foreign bridge contract.
      * @param _token The token address the _amount belongs to.
      * @param _amount The amount of wrapped PNK to mint.
      * @param _data Calldata containing the address of the recipient. 
