@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@unknownunknown1, @MerlinEgalite, @hbarcelos*, @shalzz*]
+ *  @reviewers: [@unknownunknown1, @MerlinEgalite, @hbarcelos, @shalzz*]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
@@ -119,7 +119,7 @@ contract WrappedPinakion is Initializable {
      * someone invoking `relayTokensAndCall()` on the Foreign bridge contract.
      * @param _token The token address the _amount belongs to.
      * @param _amount The amount of wrapped PNK to mint.
-     * @param _data Calldata containing the address of the recipient. 
+     * @param _data Calldata containing the address of the recipient.
      * Notice that the address has to be padded to the right 32 bytes.
      */
     function onTokenBridged(

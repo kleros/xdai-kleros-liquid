@@ -176,7 +176,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
 
     // Dispute
     // Use a mapping instead of an array so that upgrading (appending variables to) the Dispute struct is possible without big layout changes.
-    mapping(uint => Dispute) public disputes; // The disputes. 
+    mapping(uint => Dispute) public disputes; // The disputes.
     uint public totalDisputes;
 
     // Juror
@@ -395,9 +395,9 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         if (phase == Phase.staking) {
             require(now - lastPhaseChange >= minStakingTime, "The minimum staking time has not passed yet.");
             require(disputesWithoutJurors > 0, "There are no disputes that need jurors.");
-            /** collectRoundLength is added so that the last validator to reveal cannot know 
+            /** collectRoundLength is added so that the last validator to reveal cannot know
              *  during the staking phase which random seed is going to be used in the drawing phase.
-             */ 
+             */
             RNBlock = RNGenerator.nextCommitPhaseStartBlock() + RNGenerator.collectRoundLength();
             phase = Phase.generating;
         } else if (phase == Phase.generating) {
