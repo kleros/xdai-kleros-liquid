@@ -4,11 +4,11 @@ Kleros Courts on xDai
 ## Deployed Addresses
 
 xDai:
-- Wrapped PNK: `0x4B850c97caB9AbeF3BBF5Ec15Af68FA383cf5070`
-- xKlerosLiquid: `0x2F0895732bfacdCF2fdB19962fE609D0dA695F21`
-- xKlerosLiquidExtraViews: `0x04bE1cbec5a46Ac5E311CfA23450b51F24e4dF5a`
-- PolicyRegistry: `0x9FFDd42bbe7da317975d60F8eecF72A5DCdd01Ec`
-- SortitionSumTreeFactory: `0x18EA9e0FE18Ea2CB2e0d65fFdB46EB744701157E`
+- Wrapped PNK: `0x3Ff09d3E7a08C2d6350FAcF7902B4507F2490840`
+- xKlerosLiquid: `0x2826698eE38C47A7Aa0090084b9a6BfeF2A114CC`
+- xKlerosLiquidExtraViews: `0xc090E450a0472Fd9c9750600DCFe2F8109f0d4C7`
+- PolicyRegistry: `0x3d9bE45C9a2cbCD9eAC0De743519E2dcc10fF03f`
+- SortitionSumTreeFactory: `0xd5aF613AA995ABd3971C9016639F111996b469a6`
 
 Sokol:
 - Wrapped PNK: `0x9Bc02E9f5291adbb1f0Cf5C15ab1B400dccd3665`
