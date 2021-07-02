@@ -26,12 +26,12 @@ module.exports = {
       provider: function () {
         return new HDWalletProvider(
           [PRIVATE_KEYS['xdai']],
-          'https://dai.poa.network'
+          'https://rpc.xdaichain.com/'
         )
       },
       network_id: 100,
       gas: 10000000,
-      gasPrice: 1000000000,
+      gasPrice: 10000000000,
     },
     sokol: {
       provider: function () {

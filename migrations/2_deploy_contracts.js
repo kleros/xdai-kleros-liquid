@@ -8,20 +8,20 @@ var SortitionSumTreeFactory = artifacts.require("./SortitionSumTreeFactory.sol")
 
 const pinakionParams = {
   "xdai": {
-    tokenName: "Wrapped Pinakion on xDai",
-    tokenSymbol: "xWPNK",
+    tokenName: "Staking PNK on xDai",
+    tokenSymbol: "stPNK",
     xPinakion: "0x37b60f4E9A31A64cCc0024dce7D0fD07eAA0F7B3",
     tokenBridge: "0xf6A78083ca3e2a662D6dd1703c939c8aCE2e268d"
   },
   "sokol-fork": {
-    tokenName: "Wrapped Pinakion on Sokol",
-    tokenSymbol: "SWPNK",
+    tokenName: "Staking PNK on Sokol",
+    tokenSymbol: "stPNK",
     xPinakion: "0x184A7Fc4fa965D18Af84C6d97dfed8C4561ff8c2",
     tokenBridge: "0x40cdff886715a4012fad0219d15c98bb149aef0e"
   },
   "sokol": {
-    tokenName: "Wrapped Pinakion on Sokol",
-    tokenSymbol: "SWPNK",
+    tokenName: "Staking PNK on Sokol",
+    tokenSymbol: "stPNK",
     xPinakion: "0x184A7Fc4fa965D18Af84C6d97dfed8C4561ff8c2",
     tokenBridge: "0x40cdff886715a4012fad0219d15c98bb149aef0e"
   }
@@ -31,16 +31,16 @@ let xKlerosLiquidParams = {
   "xdai": {
     governor: null,
     pinakion: null,
-    RNGenerator: "0x67e90a54AeEA85f21949c645082FE95d77BC1E70",
+    RNGenerator: "0x5870b0527DeDB1cFBD9534343Feda1a41Ce47766",
     minStakingTime: 3600,
     maxDrawingTime: 7200,
-    hiddenVotes: false,
-    minStake: web3.utils.toWei('620','ether'),
-    alpha: 10000,
-    feeForJuror: web3.utils.toWei('40000000000000000','wei'),
+    hiddenVotes: true,
+    minStake: web3.utils.toWei('520','ether'), // stPNK
+    alpha: 5000,
+    feeForJuror: web3.utils.toWei('15','ether'), // xDai
     jurorsForCourtJump: 511,
     timesPerPeriod: [280800, 583200, 583200, 388800],
-    sortitionSumTreeK: 2,
+    sortitionSumTreeK: 6,
   },
   "sokol-fork": {
     governor: null,
@@ -48,13 +48,13 @@ let xKlerosLiquidParams = {
     RNGenerator: "0x8f2b78169B0970F11a762e56659Db52B59CBCf1B",
     minStakingTime: 3600,
     maxDrawingTime: 7200,
-    hiddenVotes: false,
-    minStake: web3.utils.toWei('620','ether'),
-    alpha: 10000,
-    feeForJuror: web3.utils.toWei('40000000000000000','wei'),
+    hiddenVotes: true,
+    minStake: web3.utils.toWei('520','ether'),
+    alpha: 5000,
+    feeForJuror: web3.utils.toWei('0.04','ether'),
     jurorsForCourtJump: 511,
     timesPerPeriod: [280800, 583200, 583200, 388800],
-    sortitionSumTreeK: 2,
+    sortitionSumTreeK: 6,
   },
   "sokol": {
     governor: null,
@@ -62,14 +62,25 @@ let xKlerosLiquidParams = {
     RNGenerator: "0x8f2b78169B0970F11a762e56659Db52B59CBCf1B",
     minStakingTime: 3600,
     maxDrawingTime: 7200,
-    hiddenVotes: false,
-    minStake: web3.utils.toWei('620','ether'),
-    alpha: 10000,
-    feeForJuror: web3.utils.toWei('40000000000000000','wei'),
+    hiddenVotes: true,
+    minStake: web3.utils.toWei('520','ether'),
+    alpha: 5000,
+    feeForJuror: web3.utils.toWei('0.04','ether'),
     jurorsForCourtJump: 511,
     timesPerPeriod: [280800, 583200, 583200, 388800],
-    sortitionSumTreeK: 2,
+    sortitionSumTreeK: 6,
   }
+}
+
+const curateCourt = {
+  parentCourt: 0,
+  hiddenVotes: false,
+  minStake: web3.utils.toWei('520','ether'), // stPNK
+  alpha: 3100,
+  feeForJuror: web3.utils.toWei('6.9','ether'), // xDai
+  jurorsForCourtJump: 30,
+  timesPerPeriod: [140400, 291600, 291600, 194400],
+  sortitionSumTreeK: 5,
 }
 
 module.exports = async function(deployer, network) {
@@ -112,6 +123,17 @@ module.exports = async function(deployer, network) {
     { deployer, unsafeAllowLinkedLibraries: true }
   );
 
+  await xKlerosLiquidInstance.createSubcourt(
+    curateCourt.parentCourt,
+    curateCourt.hiddenVotes,
+    curateCourt.minStake,
+    curateCourt.alpha,
+    curateCourt.feeForJuror,
+    curateCourt.jurorsForCourtJump,
+    curateCourt.timesPerPeriod,
+    curateCourt.sortitionSumTreeK
+  )
+
   await PNKInstance.changeController(xKlerosLiquidInstance.address)
 
   const ExtraViewsInstance = await deployer.deploy(
@@ -125,7 +147,11 @@ module.exports = async function(deployer, network) {
   );
   await PolicyRegistryInstance.setPolicy(
     0,
-    "/ipfs/Qmd1TMEbtic3TSonu5dfqa5k3aSrjxRGY8oJH3ruGgazRB" 
+    "/ipfs/QmQfVuFitU1pMcHqXYJbkugJBvZPXsMuWGPh2nZSQxYMTu/xDai-General-Court-Policy" 
+  )
+  await PolicyRegistryInstance.setPolicy(
+    1,
+    "/ipfs/Qmd9FHWXQrBzy5BZgeZgf8WBExu35hre1vhZJAz8FM15dc/xDai-Curation-Court-Policy" 
   )
   
   console.log('Deployed Wrapped PNK: ', PNKInstance.address);
