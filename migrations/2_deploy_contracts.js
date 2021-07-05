@@ -147,11 +147,11 @@ module.exports = async function(deployer, network) {
   );
   await PolicyRegistryInstance.setPolicy(
     0,
-    "/ipfs/QmQfVuFitU1pMcHqXYJbkugJBvZPXsMuWGPh2nZSQxYMTu/xDai-General-Court-Policy" 
+    "/ipfs/QmTsPLwhozEqjWnYKsnamZiJW47LFT7LzkQhKw5ygQxqyH/xDai-General-Court-Policy.json" 
   )
   await PolicyRegistryInstance.setPolicy(
     1,
-    "/ipfs/Qmd9FHWXQrBzy5BZgeZgf8WBExu35hre1vhZJAz8FM15dc/xDai-Curation-Court-Policy" 
+    "/ipfs/QmWQDgtUWALrnCgakAAoFWdX1P7iDGmr5imZLZzyYtPqcE/xDai-Curation-Court-Policy.json" 
   )
   
   console.log('Deployed Wrapped PNK: ', PNKInstance.address);
