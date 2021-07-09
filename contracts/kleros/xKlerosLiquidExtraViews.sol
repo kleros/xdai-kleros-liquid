@@ -73,34 +73,48 @@ contract xKlerosLiquidExtraViews {
 
         for (i = klerosLiquid.nextDelayedSetStake(); i <= klerosLiquid.lastDelayedSetStake(); i++) {
             (address account, uint96 subcourtID, uint128 stake) = klerosLiquid.delayedSetStakes(i);
-            if (_account == account) {
-                if (stake == 0) {
-                    for (uint j = 0; j < subcourtIDs.length; j++) {
-                        if (subcourtID == subcourtIDs[j]) {
-                            subcourtIDs[j] = 0;
-                            subcourtStakes[j] = 0;
-                            break;
-                        }
+            if (_account != account) continue;
+
+            if (stake == 0) {
+                for (uint j = 0; j < subcourtIDs.length; j++) {
+                    if (subcourtID + 1 == subcourtIDs[j]) {
+                        subcourtIDs[j] = 0;
+                        subcourtStakes[j] = 0;
+                        break;
                     }
-                } else {
-                    for (j = 0; j < subcourtIDs.length * 2; j++) {
-                        if ((j < subcourtIDs.length && subcourtID + 1 == subcourtIDs[j]) || (j >= subcourtIDs.length && subcourtIDs[j % subcourtIDs.length] == 0)) {
-                            (
-                                ,
-                                ,
-                                uint courtMinStake,
-                                ,
-                                ,
-                            ) = klerosLiquid.courts(j % subcourtIDs.length);
-                            if (
-                                courtMinStake <= stake &&
-                                klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j % subcourtIDs.length] + stake
-                            ) {
-                                subcourtIDs[j % subcourtIDs.length] = subcourtID + 1;
-                                stakedTokens = stakedTokens - subcourtStakes[j % subcourtIDs.length] + stake;
-                                subcourtStakes[j % subcourtIDs.length] = stake;
-                            }
+                }
+            } else {
+                uint courtMinStake;
+                bool subcourtFound = false;
+                for (j = 0; j < subcourtIDs.length; j++) {
+                    if (subcourtID + 1 != subcourtIDs[j]) continue; // Keep looking
+
+                    (,, courtMinStake,,,) = klerosLiquid.courts(subcourtIDs[j] - 1);
+                    if (
+                        courtMinStake <= stake &&
+                        klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake
+                    ) {
+                        subcourtIDs[j] = subcourtID + 1;
+                        stakedTokens = stakedTokens - subcourtStakes[j] + stake;
+                        subcourtStakes[j] = stake;
+                    }
+                    subcourtFound = true;
+                    break;
+                }
+                if (!subcourtFound) {
+                    for (j = 0; j < subcourtIDs.length; j++) {
+                        if (subcourtIDs[j] != 0) continue; // subcourt already set.
+
+                        (,, courtMinStake,,,) = klerosLiquid.courts(subcourtID);
+                        if (
+                            courtMinStake <= stake &&
+                            klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake
+                        ) {
+                            subcourtIDs[j] = subcourtID + 1;
+                            stakedTokens = stakedTokens - subcourtStakes[j] + stake;
+                            subcourtStakes[j] = stake;
                         }
+                        break; // Stake assigned to subcourt.
                     }
                 }
             }
