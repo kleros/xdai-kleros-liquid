@@ -75,6 +75,8 @@ contract xKlerosLiquidExtraViews {
             (address account, uint96 subcourtID, uint128 stake) = klerosLiquid.delayedSetStakes(i);
             if (_account != account) continue;
 
+            (,, uint courtMinStake,,,) = klerosLiquid.courts(subcourtID);
+
             if (stake == 0) {
                 for (uint j = 0; j < subcourtIDs.length; j++) {
                     if (subcourtID + 1 == subcourtIDs[j]) {
@@ -83,19 +85,13 @@ contract xKlerosLiquidExtraViews {
                         break;
                     }
                 }
-            } else {
-                uint courtMinStake;
+            } else if (stake >= courtMinStake) {
                 bool subcourtFound = false;
                 // First, look for the subcourt among the subcourts the user has already staked in.
                 for (j = 0; j < subcourtIDs.length; j++) {
                     if (subcourtID + 1 != subcourtIDs[j]) continue; // Keep looking
 
-                    (,, courtMinStake,,,) = klerosLiquid.courts(subcourtIDs[j] - 1);
-                    if (
-                        courtMinStake <= stake &&
-                        klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake
-                    ) {
-                        subcourtIDs[j] = subcourtID + 1;
+                    if (klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake) {
                         stakedTokens = stakedTokens - subcourtStakes[j] + stake;
                         subcourtStakes[j] = stake;
                     }
@@ -108,11 +104,7 @@ contract xKlerosLiquidExtraViews {
                     for (j = 0; j < subcourtIDs.length; j++) {
                         if (subcourtIDs[j] != 0) continue; // subcourt already set.
 
-                        (,, courtMinStake,,,) = klerosLiquid.courts(subcourtID);
-                        if (
-                            courtMinStake <= stake &&
-                            klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake
-                        ) {
+                        if (klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake) {
                             subcourtIDs[j] = subcourtID + 1;
                             stakedTokens = stakedTokens - subcourtStakes[j] + stake;
                             subcourtStakes[j] = stake;
