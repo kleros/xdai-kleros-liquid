@@ -86,6 +86,7 @@ contract xKlerosLiquidExtraViews {
             } else {
                 uint courtMinStake;
                 bool subcourtFound = false;
+                // First, look for the subcourt among the subcourts the user has already staked in.
                 for (j = 0; j < subcourtIDs.length; j++) {
                     if (subcourtID + 1 != subcourtIDs[j]) continue; // Keep looking
 
@@ -102,6 +103,8 @@ contract xKlerosLiquidExtraViews {
                     break;
                 }
                 if (!subcourtFound) {
+                    // The user's stake in the subcourt is 0 at the moment. 
+                    // If there is space, add the subcourt ID and the new stake to the list.
                     for (j = 0; j < subcourtIDs.length; j++) {
                         if (subcourtIDs[j] != 0) continue; // subcourt already set.
 
