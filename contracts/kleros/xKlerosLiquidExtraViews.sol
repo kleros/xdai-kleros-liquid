@@ -11,7 +11,7 @@ import { xKlerosLiquid } from "./xKlerosLiquid.sol";
 
 /**
  *  @title xKlerosLiquidExtraViews
- *  @dev This contract is an adaption of Mainnet's xKlerosLiquidExtraViews (https://github.com/kleros/kleros/blob/69cfbfb2128c29f1625b3a99a3183540772fda08/contracts/kleros/KlerosLiquidExtraViews.sol)
+ *  @dev This contract is an adaption of Mainnet's KlerosLiquidExtraViews (https://github.com/kleros/kleros/blob/69cfbfb2128c29f1625b3a99a3183540772fda08/contracts/kleros/KlerosLiquidExtraViews.sol)
  *  for xDai chain.
  */
 contract xKlerosLiquidExtraViews {
