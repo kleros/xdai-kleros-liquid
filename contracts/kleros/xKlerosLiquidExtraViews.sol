@@ -18,6 +18,7 @@ contract xKlerosLiquidExtraViews {
     /* Storage */
 
     xKlerosLiquid public klerosLiquid;
+    uint private constant NOT_FOUND = uint(-1);
 
     /* Constructor */
 
@@ -86,31 +87,23 @@ contract xKlerosLiquidExtraViews {
                     }
                 }
             } else if (stake >= courtMinStake) {
-                bool subcourtFound = false;
-                // First, look for the subcourt among the subcourts the user has already staked in.
+                uint index = NOT_FOUND;
                 for (j = 0; j < subcourtIDs.length; j++) {
-                    if (subcourtID + 1 != subcourtIDs[j]) continue; // Keep looking
-
-                    if (klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake) {
-                        stakedTokens = stakedTokens - subcourtStakes[j] + stake;
-                        subcourtStakes[j] = stake;
+                    if (subcourtIDs[j] == 0 && index == NOT_FOUND) {
+                        index = j; // Save the first empty index, but keep looking for the subcourt.
+                    } else if (subcourtID + 1 == subcourtIDs[j]) {
+                        index = j; // Juror is already active in this subcourt. Save and update.
+                        break;
                     }
-                    subcourtFound = true;
-                    break;
                 }
-                if (!subcourtFound) {
-                    // The user's stake in the subcourt is 0 at the moment. 
-                    // If there is space, add the subcourt ID and the new stake to the list.
-                    for (j = 0; j < subcourtIDs.length; j++) {
-                        if (subcourtIDs[j] != 0) continue; // subcourt already set.
 
-                        if (klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[j] + stake) {
-                            subcourtIDs[j] = subcourtID + 1;
-                            stakedTokens = stakedTokens - subcourtStakes[j] + stake;
-                            subcourtStakes[j] = stake;
-                        }
-                        break; // Stake assigned to subcourt.
-                    }
+                if (
+                    index != NOT_FOUND && 
+                    klerosLiquid.pinakion().balanceOf(_account) >= stakedTokens - subcourtStakes[index] + stake
+                ) {
+                    subcourtIDs[index] = subcourtID + 1;
+                    stakedTokens = stakedTokens - subcourtStakes[index] + stake;
+                    subcourtStakes[index] = stake;
                 }
             }
         }
