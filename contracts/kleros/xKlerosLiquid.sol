@@ -1,7 +1,7 @@
 /**
  *  https://contributing.kleros.io/smart-contract-workflow
  *  @authors: [@fnanni-0]
- *  @reviewers: [@shalzz, @unknownunknown1, @MerlinEgalite, @hbarcelos]
+ *  @reviewers: [@shalzz, @unknownunknown1, @MerlinEgalite, @hbarcelos, @jaybuidl]
  *  @auditors: []
  *  @bounties: []
  *  @deployments: []
