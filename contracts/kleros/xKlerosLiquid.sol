@@ -498,7 +498,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
             // Draw from sortition tree.
             (
                 address drawnAddress,
-                uint subcourtID
+                /* uint subcourtID */
             ) = stakePathIDToAccountAndSubcourtID(sortitionSumTrees.draw(bytes32(dispute.subcourtID), uint(keccak256(RN, _disputeID, i))));
 
             // Save the vote.
@@ -705,7 +705,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint _numberOfChoices,
         bytes _extraData
     ) public payable requireArbitrationFee(_extraData) returns(uint disputeID)  {
-        (uint96 subcourtID, uint minJurors) = extraDataToSubcourtIDAndMinJurors(_extraData);
+        (uint96 subcourtID, /* uint minJurors */ ) = extraDataToSubcourtIDAndMinJurors(_extraData);
         disputeID = totalDisputes++;
         Dispute storage dispute = disputes[disputeID];
         dispute.subcourtID = subcourtID;
