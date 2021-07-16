@@ -6,7 +6,7 @@ Kleros Courts on xDai
 xDai:
 - Wrapped PNK: `0xcb3231aBA3b451343e0Fddfc45883c842f223846`
 - xKlerosLiquid: `0x9C1dA9A04925bDfDedf0f6421bC7EEa8305F9002`
-- xKlerosLiquidExtraViews: `0xFA71f907B48f27d22f670d9E446f8137b0769e4B`
+- xKlerosLiquidExtraViews: `0xA60f464d5b71B5D2960713c8D1F95243cd2CFa78`
 - PolicyRegistry: `0x9d494768936b6bDaabc46733b8D53A937A6c6D7e`
 - SortitionSumTreeFactory: `0x7AE716d9935F41F173D944FE6557c1e117d561E9`
 - ProxyAdmin: `0xD1a711a863aFB85D1b4E721DcB3e48C477E46475`
@@ -14,7 +14,7 @@ xDai:
 Sokol:
 - Wrapped PNK: `0x9Bc02E9f5291adbb1f0Cf5C15ab1B400dccd3665`
 - xKlerosLiquid: `0xb701ff19fBD9702DD7Ca099Ee7D0D42a2612baB5`
-- xKlerosLiquidExtraViews: `0x1Aab57DD59afc98bff1D939b34974E9c8fc705fF`
+- xKlerosLiquidExtraViews: `0x60AdebC3C75f4d1811cc842eee3E6287913B33A5`
 - PolicyRegistry: `0x0Bee63bC7220d0Bacd8A3c9d6B6511126CDfe58f`
 
 # Testing PNK on Sokol-Kovan
