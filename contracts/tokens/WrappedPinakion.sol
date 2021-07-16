@@ -10,11 +10,12 @@ pragma solidity ^0.4.24;
 
 import "openzeppelin-eth/contracts/zos-lib/Initializable.sol";
 import "openzeppelin-eth/contracts/math/SafeMath.sol";
+import "openzeppelin-eth/contracts/token/ERC20/IERC20.sol";
 import {TokenController} from "minimetoken/contracts/TokenController.sol";
 import {ITokenBridge} from "../interfaces/ITokenBridge.sol";
 import {IERC677} from "../interfaces/IERC677.sol";
 
-contract WrappedPinakion is Initializable {
+contract WrappedPinakion is Initializable, IERC20 {
     using SafeMath for uint256;
 
     /* Events */
