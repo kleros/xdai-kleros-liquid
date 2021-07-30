@@ -18,27 +18,13 @@ import {IERC677} from "../interfaces/IERC677.sol";
 contract WrappedPinakion is Initializable, IERC20 {
     using SafeMath for uint256;
 
-    /* Events */
-
-    /**
-     * @notice Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
-     * @dev Notice that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @notice Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
     /* Storage */
 
     mapping(address => uint256) private balances;
-    mapping(address => mapping(address => uint256)) public allowance;
+    mapping(address => mapping(address => uint256)) private _allowance;
 
     /// @notice Total supply of the token. Equals the total xPinakion deposit into the contract.
-    uint256 public totalSupply;
+    uint256 private _totalSupply;
 
     /// @notice Name of the token.
     string public name;
@@ -207,7 +193,7 @@ contract WrappedPinakion is Initializable, IERC20 {
          *  another open source smart contract or 0x0.
          */
         if (msg.sender != controller) {
-            allowance[_sender][msg.sender] = allowance[_sender][msg.sender].sub(_amount); // ERC20: transfer amount exceeds allowance.
+            _allowance[_sender][msg.sender] = _allowance[_sender][msg.sender].sub(_amount); // ERC20: transfer amount exceeds allowance.
         }
 
         balances[_sender] = balances[_sender].sub(_amount); // ERC20: transfer amount exceeds balance
@@ -231,7 +217,7 @@ contract WrappedPinakion is Initializable, IERC20 {
             );
         }
 
-        allowance[msg.sender][_spender] = _amount;
+        _allowance[msg.sender][_spender] = _amount;
         emit Approval(msg.sender, _spender, _amount);
         return true;
     }
@@ -243,7 +229,7 @@ contract WrappedPinakion is Initializable, IERC20 {
      * @return True on success.
      */
     function increaseAllowance(address _spender, uint256 _addedValue) public returns (bool) {
-        uint256 newAllowance = allowance[msg.sender][_spender].add(_addedValue);
+        uint256 newAllowance = _allowance[msg.sender][_spender].add(_addedValue);
         // Alerts the token controller of the approve function call
         if (isContract(controller)) {
             require(
@@ -252,7 +238,7 @@ contract WrappedPinakion is Initializable, IERC20 {
             );
         }
 
-        allowance[msg.sender][_spender] = newAllowance;
+        _allowance[msg.sender][_spender] = newAllowance;
         emit Approval(msg.sender, _spender, newAllowance);
         return true;
     }
@@ -264,7 +250,7 @@ contract WrappedPinakion is Initializable, IERC20 {
      * @return True on success.
      */
     function decreaseAllowance(address _spender, uint256 _subtractedValue) public returns (bool) {
-        uint256 newAllowance = allowance[msg.sender][_spender].sub(_subtractedValue); // ERC20: decreased allowance below zero
+        uint256 newAllowance = _allowance[msg.sender][_spender].sub(_subtractedValue); // ERC20: decreased allowance below zero
         // Alerts the token controller of the approve function call
         if (isContract(controller)) {
             require(
@@ -273,7 +259,7 @@ contract WrappedPinakion is Initializable, IERC20 {
             );
         }
 
-        allowance[msg.sender][_spender] = newAllowance;
+        _allowance[msg.sender][_spender] = newAllowance;
         emit Approval(msg.sender, _spender, newAllowance);
         return true;
     }
@@ -288,7 +274,7 @@ contract WrappedPinakion is Initializable, IERC20 {
      * @param _amount The amount that will be created.
      */
     function _mint(address _recipient, uint256 _amount) internal {
-        totalSupply = totalSupply.add(_amount);
+        _totalSupply = _totalSupply.add(_amount);
         balances[_recipient] = balances[_recipient].add(_amount);
         emit Transfer(address(0x0), _recipient, _amount);
     }
@@ -305,7 +291,7 @@ contract WrappedPinakion is Initializable, IERC20 {
             );
         }
         balances[msg.sender] = balances[msg.sender].sub(_amount); // ERC20: burn amount exceeds balance
-        totalSupply = totalSupply.sub(_amount);
+        _totalSupply = _totalSupply.sub(_amount);
         emit Transfer(msg.sender, address(0x0), _amount);
     }
 
@@ -332,5 +318,13 @@ contract WrappedPinakion is Initializable, IERC20 {
      */
     function balanceOf(address _owner) public view returns (uint256) {
         return balances[_owner];
+    }
+
+    function allowance(address owner, address spender) external view returns (uint256) {
+        return _allowance[owner][spender];
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return _totalSupply;
     }
 }
