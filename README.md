@@ -1,12 +1,12 @@
 # xdai-kleros-liquid
-Kleros Courts on xDai
+Kleros Courts on xDAI
 
 ## Deployed Addresses
 
-xDai:
+xDAI:
 - Wrapped PNK: `0xcb3231aBA3b451343e0Fddfc45883c842f223846`
 - xKlerosLiquid: `0x9C1dA9A04925bDfDedf0f6421bC7EEa8305F9002`
-- xKlerosLiquidExtraViews: `0xA60f464d5b71B5D2960713c8D1F95243cd2CFa78`
+- xKlerosLiquidExtraViews: `0x1c0D5A1fF532715a58d0456ef10532e3eb6ec5de`
 - PolicyRegistry: `0x9d494768936b6bDaabc46733b8D53A937A6c6D7e`
 - SortitionSumTreeFactory: `0x7AE716d9935F41F173D944FE6557c1e117d561E9`
 - ProxyAdmin: `0xD1a711a863aFB85D1b4E721DcB3e48C477E46475`
@@ -14,7 +14,7 @@ xDai:
 Sokol:
 - Wrapped PNK: `0x9Bc02E9f5291adbb1f0Cf5C15ab1B400dccd3665`
 - xKlerosLiquid: `0xb701ff19fBD9702DD7Ca099Ee7D0D42a2612baB5`
-- xKlerosLiquidExtraViews: `0x60AdebC3C75f4d1811cc842eee3E6287913B33A5`
+- xKlerosLiquidExtraViews: `0x933FFDaa817A1F981A1FA089240b53a7a79f482a`
 - PolicyRegistry: `0x0Bee63bC7220d0Bacd8A3c9d6B6511126CDfe58f`
 
 # Testing PNK on Sokol-Kovan
