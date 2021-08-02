@@ -1,15 +1,7 @@
 /* globals artifacts, contract, expect, web3 */
-const { soliditySha3 } = require('web3-utils')
-const { deployProxy, upgradeProxy } = require('@openzeppelin/truffle-upgrades')
-const { expectRevert } = require('@openzeppelin/test-helpers')
-const {
-  expectThrow,
-} = require('openzeppelin-solidity/test/helpers/expectThrow')
+const { deployProxy } = require('@openzeppelin/truffle-upgrades')
 const {
   increaseTime,
-  advanceBlock,
-  advanceBlockTo,
-  latestBlockNumber,
 } = require('../helpers/time')
 const { MAX_UINT256 } = require('@openzeppelin/test-helpers/src/constants')
 
