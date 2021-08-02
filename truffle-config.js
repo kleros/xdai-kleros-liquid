@@ -43,6 +43,7 @@ module.exports = {
       network_id: '77',
       gas: 10000000,
       gasPrice: 1000000000,
+      skipDryRun: true,
     },
   },
   plugins: [

@@ -82,6 +82,7 @@ contract xKlerosLiquidExtraViews {
             if (stake == 0) {
                 for (uint j = 0; j < subcourtIDs.length; j++) {
                     if (subcourtID + 1 == subcourtIDs[j]) {
+                        stakedTokens = stakedTokens - subcourtStakes[j];
                         subcourtIDs[j] = 0;
                         subcourtStakes[j] = 0;
                         break;
