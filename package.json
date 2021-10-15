@@ -55,5 +55,9 @@
     "@kleros/kleros-interaction": "^0.10.0",
     "@openzeppelin/truffle-upgrades": "^1.5.0",
     "openzeppelin-eth": "2.0.2-standalone"
+  },
+  "volta": {
+    "node": "10.24.1",
+    "yarn": "1.22.15"
   }
 }
