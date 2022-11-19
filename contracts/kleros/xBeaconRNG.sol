@@ -1,0 +1,81 @@
+/**
+ *  @authors: [@unknownunknown1]
+ *  @reviewers: []
+ *  @auditors: []
+ *  @bounties: []
+ *  @deployments: []
+ */
+
+pragma solidity ^0.4.24;
+
+import "../interfaces/IRandomAuRa.sol";
+
+interface IKlerosLiquid {
+
+    function RNBlock() external returns (uint256);
+
+}
+
+/**
+ *  @title xBeaconRNG
+ *  @dev RNG for Kleros Court on xDai that uses RandomAura pre-Merge and EIP-4399 randomness post-Merge.
+ */
+contract xBeaconRNG is IRandomAuRa {
+
+    uint256 public constant LOOKAHEAD = 68; // Number of blocks that has to pass before obtaining the random number. 4 epochs (16 slots each for xDai) + 4 slots, according to EIP-4399.
+    // TODO: determine the optimal error distance.
+    uint256 public constant ERROR = 32; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
+
+    IRandomAuRa public RNGFallback; // Address of RNG to use pre-Merge. Check IRandomAura.sol for reference.
+    IKlerosLiquid public klerosLiquid; // Address of KlerosLiquid on xDai.
+
+    /** @dev Constructor.
+     * @param _RNGFallback Gnosis chain RandomAura contract to use pre-Merge.
+     */
+    constructor(IRandomAuRa _RNGFallback, IKlerosLiquid _klerosLiquid) public {
+        RNGFallback = _RNGFallback;
+        klerosLiquid = _klerosLiquid;
+    }
+
+    function currentSeed() external view returns (uint256) {
+        // Pre-Merge.
+        if (block.difficulty <= 2**64) {
+            return RNGFallback.currentSeed();
+        // Post-Merge.
+        } else {
+            return block.difficulty;
+        }
+    }
+
+    function isCommitPhase() external view returns (bool) {
+        // Pre-Merge.
+        if (block.difficulty <= 2**64) {
+            return RNGFallback.isCommitPhase();
+        // Post-Merge.
+        } else {
+            // Validity of block.number is checked directly in the court contract.
+            return (block.number - klerosLiquid.RNBlock()) % (LOOKAHEAD + ERROR) >= LOOKAHEAD;
+        }
+    }
+
+    function nextCommitPhaseStartBlock() external view returns (uint256) {
+        // Pre-Merge.
+        if (block.difficulty <= 2**64) {
+            return RNGFallback.nextCommitPhaseStartBlock();
+        // Post-Merge.
+        } else {
+            // Simply return a block number so its sum with collectRoundLength will give us a lookahead.
+            return block.number;
+        }
+    }
+
+    function collectRoundLength() external view returns (uint256) {
+        // Pre-Merge.
+        if (block.difficulty <= 2**64) {
+            return RNGFallback.collectRoundLength();
+        // Post-Merge.
+        } else {
+            return LOOKAHEAD;
+        }
+    }
+}
