@@ -31,6 +31,7 @@ contract xBeaconRNG is IRandomAuRa {
 
     /** @dev Constructor.
      * @param _RNGFallback Gnosis chain RandomAura contract to use pre-Merge.
+     * @param _klerosLiquid KlerosLiquid address
      */
     constructor(IRandomAuRa _RNGFallback, IKlerosLiquid _klerosLiquid) public {
         RNGFallback = _RNGFallback;
@@ -64,7 +65,6 @@ contract xBeaconRNG is IRandomAuRa {
             return RNGFallback.nextCommitPhaseStartBlock();
         // Post-Merge.
         } else {
-            // Simply return a block number so its sum with collectRoundLength will give us a lookahead.
             return block.number;
         }
     }
@@ -75,7 +75,7 @@ contract xBeaconRNG is IRandomAuRa {
             return RNGFallback.collectRoundLength();
         // Post-Merge.
         } else {
-            return LOOKAHEAD;
+            return 0;
         }
     }
 }
