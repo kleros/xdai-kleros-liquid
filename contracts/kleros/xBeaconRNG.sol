@@ -23,8 +23,7 @@ interface IKlerosLiquid {
 contract xBeaconRNG is IRandomAuRa {
 
     uint256 public constant LOOKAHEAD = 68; // Number of blocks that has to pass before obtaining the random number. 4 epochs (16 slots each for xDai) + 4 slots, according to EIP-4399.
-    // TODO: determine the optimal error distance.
-    uint256 public constant ERROR = 32; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
+    uint256 public constant ERROR = 77; // Number of blocks after which the lookahead gets reset, so eligible blocks after lookahead don't go long distance, to avoid a possiblity for manipulation.
 
     IRandomAuRa public RNGFallback; // Address of RNG to use pre-Merge. Check IRandomAura.sol for reference.
     IKlerosLiquid public klerosLiquid; // Address of KlerosLiquid on xDai.
