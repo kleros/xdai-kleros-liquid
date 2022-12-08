@@ -3,7 +3,7 @@
  *  @reviewers: [@jaybuidl]
  *  @auditors: []
  *  @bounties: []
- *  @deployments: []
+ *  @deployments: [24f03e4@0x52a2a2cD6775f35E53ea757Dd2F7E96ee81d7DD7]
  */
 
 pragma solidity ^0.4.24;
