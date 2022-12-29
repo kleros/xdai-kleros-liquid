@@ -18,6 +18,10 @@ import { IRandomAuRa } from "../interfaces/IRandomAuRa.sol";
 
 import { SortitionSumTreeFactory } from "@kleros/kleros/contracts/data-structures/SortitionSumTreeFactory.sol";
 
+interface IForeignGateway {
+    function createDispute(uint _choices, bytes _extraData) external payable returns (uint disputeID);
+}
+
 /**
  *  @title xKlerosLiquid
  *  @dev This contract is an adaption of Mainnet's KlerosLiquid (https://github.com/kleros/kleros/blob/69cfbfb2128c29f1625b3a99a3183540772fda08/contracts/kleros/KlerosLiquid.sol)
@@ -179,6 +183,11 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
     mapping(uint => Dispute) public disputes; // The disputes.
     uint public totalDisputes;
 
+    IForeignGateway public foreignGateway; // The contract that will relay disputes to V2 arbitrator.
+
+    // TODO: implement fee conversion into WETH. The addresses of WETH and WXDAI tokens can be declared as constants.
+    //IUniswapRouter public uniswapRouter; // Router to convert xDai fees into WETH in order to transfer them to foreign gateway.
+
     // Juror
     mapping(address => Juror) public jurors; // The jurors.
 
@@ -213,6 +222,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      *  @param _jurorsForCourtJump The `jurorsForCourtJump` property value of the general court.
      *  @param _timesPerPeriod The `timesPerPeriod` property value of the general court.
      *  @param _sortitionSumTreeK The number of children per node of the general court's sortition sum tree.
+     *  @param _foreignGateway Foreign gateway contract.
      */
     function initialize(
         address _governor,
@@ -226,7 +236,8 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         uint _feeForJuror,
         uint _jurorsForCourtJump,
         uint[4] _timesPerPeriod,
-        uint _sortitionSumTreeK
+        uint _sortitionSumTreeK,
+        IForeignGateway _foreignGateway
     ) public initializer {
         // Initialize contract.
         governor = _governor;
@@ -237,6 +248,7 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         lastPhaseChange = now;
         lockInsolventTransfers = true;
         nextDelayedSetStake = 1;
+        foreignGateway = _foreignGateway;
 
         // Create the general court.
         courts.push(Court({
@@ -299,6 +311,13 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
      */
     function changeMaxDrawingTime(uint _maxDrawingTime) external onlyByGovernor {
         maxDrawingTime = _maxDrawingTime;
+    }
+
+    /** @dev Changes the `foreignGateway` storage variable.
+     *  @param _foreignGateway The new value for the `foreignGateway` storage variable.
+     */
+    function changeForeignGateway(IForeignGateway _foreignGateway) external onlyByGovernor {
+        foreignGateway = _foreignGateway;
     }
 
     /** @dev Creates a subcourt under a specified parent court.
@@ -694,6 +713,22 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         dispute.arbitrated.rule(_disputeID, winningChoice);
     }
 
+    /** @dev Receive the ruling from foreign gateway which technically is an arbitrator of this contract.
+     *  @param _disputeID ID of the dispute.
+     *  @param _ruling Ruling given by V2 court and relayed by foreign gateway.
+     */
+    function rule(uint _disputeID, uint _ruling) external {
+        require(_disputeID < totalDisputes, "Dispute ID does not exist.");
+        require(msg.sender == address(foreignGateway), "Can only be called by gateway");
+
+        Dispute storage dispute = disputes[_disputeID];
+        require(!dispute.ruled, "Ruling already executed.");
+        dispute.ruled = true;
+
+        // Send the relayed ruling to the arbitrable while fully bypassing the dispute flow.
+        dispute.arbitrated.rule(_disputeID, _ruling);
+    }
+
     /* Public */
 
     /** @dev Creates a dispute. Must be called by the arbitrable contract.
@@ -722,6 +757,10 @@ contract xKlerosLiquid is Initializable, TokenController, Arbitrator {
         dispute.repartitionsInEachRound.push(0);
         dispute.penaltiesInEachRound.push(0);
         disputesWithoutJurors++;
+
+        // TODO: convert msg.value into WETH and transfer it to foreign gateway instead of sending it directly.
+        // Keep in mind that foreign gateway also checks the arbitrator fee and it does so based on the fee in V2.
+        foreignGateway.createDispute.value(msg.value)(_numberOfChoices, _extraData);
 
         emit DisputeCreation(disputeID, Arbitrable(msg.sender));
     }
