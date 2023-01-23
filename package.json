@@ -44,7 +44,7 @@
     "solhint": "^3.3.4",
     "solhint-plugin-prettier": "^0.0.5",
     "solidity-coverage": "^0.5.11",
-    "standard-version": "^4.4.0",
+    "standard-version": "^8.0.1",
     "truffle": "^5.2.6",
     "truffle-hdwallet-provider": "1.0.17",
     "truffle-hdwallet-provider-privkey": "1.0.3",
